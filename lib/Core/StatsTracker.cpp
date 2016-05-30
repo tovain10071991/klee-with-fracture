@@ -437,7 +437,7 @@ void StatsTracker::updateStateStatistics(uint64_t addend) {
 }
 
 void StatsTracker::writeIStats() {
-  Module *m = executor.kmodule->module;
+  Module *m = executor.kmodule->mainModule;
   uint64_t istatsMask = 0;
   llvm::raw_fd_ostream &of = *istatsFile;
   
@@ -634,7 +634,7 @@ uint64_t klee::computeMinDistToUncovered(const KInstruction *ki,
 
 void StatsTracker::computeReachableUncovered() {
   KModule *km = executor.kmodule;
-  Module *m = km->module;
+  Module *m = km->mainModule;
   static bool init = true;
   const InstructionInfoTable &infos = *km->infos;
   StatisticManager &sm = *theStatisticManager;

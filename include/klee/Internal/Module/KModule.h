@@ -84,7 +84,8 @@ namespace klee {
 
   class KModule {
   public:
-    llvm::Module *module;
+    llvm::Module* mainModule;
+    std::set<llvm::Module*> modules;
 #if LLVM_VERSION_CODE <= LLVM_VERSION(3, 1)
     llvm::TargetData *targetData;
 #else

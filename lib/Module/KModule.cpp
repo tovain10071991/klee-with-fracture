@@ -102,11 +102,12 @@ namespace {
 }
 
 KModule::KModule(Module *_module) 
-  : module(_module),
+  : mainModule(_module),
+    modules({mainModule}),
 #if LLVM_VERSION_CODE <= LLVM_VERSION(3, 1)
-    targetData(new TargetData(module)),
+    targetData(new TargetData(mainModule)),
 #else
-    targetData(new DataLayout(module)),
+    targetData(new DataLayout(mainModule)),
 #endif
     kleeMergeFn(0),
     infos(0),
@@ -126,7 +127,7 @@ KModule::~KModule() {
     delete it->second;
 
   delete targetData;
-  delete module;
+  // delete module;
 }
 
 /***/
@@ -229,7 +230,7 @@ static void forceImport(Module *m, const char *name, LLVM_TYPE_Q Type *retType,
 
 
 void KModule::addInternalFunction(const char* functionName){
-  Function* internalFunction = module->getFunction(functionName);
+  Function* internalFunction = mainModule->getFunction(functionName);
   if (!internalFunction) {
     KLEE_DEBUG(klee_warning(
         "Failed to add internal function %s. Not found.", functionName));
@@ -242,20 +243,20 @@ void KModule::addInternalFunction(const char* functionName){
 void KModule::prepare(const Interpreter::ModuleOptions &opts,
                       InterpreterHandler *ih) {
   if (!MergeAtExit.empty()) {
-    Function *mergeFn = module->getFunction("klee_merge");
+    Function *mergeFn = mainModule->getFunction("klee_merge");
     if (!mergeFn) {
       LLVM_TYPE_Q llvm::FunctionType *Ty = 
         FunctionType::get(Type::getVoidTy(getGlobalContext()), 
                           std::vector<LLVM_TYPE_Q Type*>(), false);
       mergeFn = Function::Create(Ty, GlobalVariable::ExternalLinkage,
 				 "klee_merge",
-				 module);
+				 mainModule);
     }
 
     for (cl::list<std::string>::iterator it = MergeAtExit.begin(), 
            ie = MergeAtExit.end(); it != ie; ++it) {
       std::string &name = *it;
-      Function *f = module->getFunction(name);
+      Function *f = mainModule->getFunction(name);
       if (!f) {
         klee_error("cannot insert merge-at-exit for: %s (cannot find)",
                    name.c_str());
@@ -308,7 +309,7 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
   // pm.run(*module);
 
   if (opts.Optimize)
-    Optimize(module);
+    Optimize(mainModule);
 #if LLVM_VERSION_CODE < LLVM_VERSION(3, 3)
   // Force importing functions required by intrinsic lowering. Kind of
   // unfortunate clutter when we don't need them but we won't know
@@ -318,15 +319,15 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
   // avoid creating stale uses.
 
   LLVM_TYPE_Q llvm::Type *i8Ty = Type::getInt8Ty(getGlobalContext());
-  forceImport(module, "memcpy", PointerType::getUnqual(i8Ty),
+  forceImport(mainModule, "memcpy", PointerType::getUnqual(i8Ty),
               PointerType::getUnqual(i8Ty),
               PointerType::getUnqual(i8Ty),
               targetData->getIntPtrType(getGlobalContext()), (Type*) 0);
-  forceImport(module, "memmove", PointerType::getUnqual(i8Ty),
+  forceImport(mainModule, "memmove", PointerType::getUnqual(i8Ty),
               PointerType::getUnqual(i8Ty),
               PointerType::getUnqual(i8Ty),
               targetData->getIntPtrType(getGlobalContext()), (Type*) 0);
-  forceImport(module, "memset", PointerType::getUnqual(i8Ty),
+  forceImport(mainModule, "memset", PointerType::getUnqual(i8Ty),
               PointerType::getUnqual(i8Ty),
               Type::getInt32Ty(getGlobalContext()),
               targetData->getIntPtrType(getGlobalContext()), (Type*) 0);
@@ -345,7 +346,7 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
       "libkleeRuntimeIntrinsic.bca"
 #endif
     );
-  module = linkWithLibrary(module, LibPath.str());
+  mainModule = linkWithLibrary(mainModule, LibPath.str());
 
   // Add internal functions which are not used to check if instructions
   // have been already visited
@@ -357,7 +358,7 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
 
   // Needs to happen after linking (since ctors/dtors can be modified)
   // and optimization (since global optimization can rewrite lists).
-  injectStaticConstructorsAndDestructors(module);
+  injectStaticConstructorsAndDestructors(mainModule);
 
   // Finally, run the passes that maintain invariants we expect during
   // interpretation. We run the intrinsic cleaner just in case we
@@ -379,11 +380,11 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
   // For cleanliness see if we can discard any of the functions we
   // forced to import.
   Function *f;
-  f = module->getFunction("memcpy");
+  f = mainModule->getFunction("memcpy");
   if (f && f->use_empty()) f->eraseFromParent();
-  f = module->getFunction("memmove");
+  f = mainModule->getFunction("memmove");
   if (f && f->use_empty()) f->eraseFromParent();
-  f = module->getFunction("memset");
+  f = mainModule->getFunction("memset");
   if (f && f->use_empty()) f->eraseFromParent();
 #endif
 
@@ -397,11 +398,11 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
     // We have an option for this in case the user wants a .ll they
     // can compile.
     if (NoTruncateSourceLines) {
-      *os << *module;
+      *os << *mainModule;
     } else {
       std::string string;
       llvm::raw_string_ostream rss(string);
-      rss << *module;
+      rss << *mainModule;
       rss.flush();
       const char *position = string.c_str();
 
@@ -427,17 +428,17 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
 
   if (OutputModule) {
     llvm::raw_fd_ostream *f = ih->openOutputFile("final.bc");
-    WriteBitcodeToFile(module, *f);
+    WriteBitcodeToFile(mainModule, *f);
     delete f;
   }
 
-  kleeMergeFn = module->getFunction("klee_merge");
+  kleeMergeFn = mainModule->getFunction("klee_merge");
 
   /* Build shadow structures */
 
-  infos = new InstructionInfoTable(module);  
+  infos = new InstructionInfoTable(mainModule);  
   
-  for (Module::iterator it = module->begin(), ie = module->end();
+  for (Module::iterator it = mainModule->begin(), ie = mainModule->end();
        it != ie; ++it) {
     if (it->isDeclaration())
       continue;

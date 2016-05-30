@@ -436,7 +436,7 @@ MemoryObject * Executor::addExternalObject(ExecutionState &state,
 extern void *__dso_handle __attribute__ ((__weak__));
 
 void Executor::initializeGlobals(ExecutionState &state) {
-  Module *m = kmodule->module;
+  Module *m = kmodule->mainModule;
 
   if (m->getModuleInlineAsm() != "")
     klee_warning("executable has module level assembly (ignoring)");
@@ -1363,9 +1363,19 @@ Function* Executor::getTargetFunction(Value *calledVal, ExecutionState &state) {
 
       std::string alias = state.getFnAlias(gv->getName());
       if (alias != "") {
-        llvm::Module* currModule = kmodule->module;
+        // llvm::Module* currModule = kmodule->module;
         GlobalValue *old_gv = gv;
-        gv = currModule->getNamedValue(alias);
+        auto currModule = kmodule->modules.begin();
+        for(; currModule != kmodule->modules.end(); ++currModule)
+        {
+          gv = (*currModule)->getNamedValue(alias);
+          if(gv)
+            break;
+        }
+        for(; currModule != kmodule->modules.end(); ++currModule)
+          assert(!(*currModule)->getNamedValue(alias));
+        // if(!gv)
+          // gv = getFunction(alias);
         if (!gv) {
           llvm::errs() << "Function " << alias << "(), alias for " 
                        << old_gv->getName() << " not found!\n";
