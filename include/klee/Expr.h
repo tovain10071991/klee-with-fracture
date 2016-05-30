@@ -89,6 +89,8 @@ Todo: Shouldn't bool \c Xor just be written as not equal?
 
 class Expr {
 public:
+  bool from_extern;
+
   static unsigned count;
   static const unsigned MAGIC_HASH_CONSTANT = 39;
 
@@ -178,7 +180,7 @@ protected:
   unsigned hashValue;
   
 public:
-  Expr() : refCount(0) { Expr::count++; }
+  Expr() :from_extern(false), refCount(0) { Expr::count++; }
   virtual ~Expr() { Expr::count--; } 
 
   virtual Kind getKind() const = 0;

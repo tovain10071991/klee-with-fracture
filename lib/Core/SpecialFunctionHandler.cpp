@@ -32,6 +32,8 @@
 
 #include <errno.h>
 
+#include "Helper/DecompileHelper.h"
+
 using namespace llvm;
 using namespace klee;
 
@@ -131,6 +133,8 @@ static SpecialFunctionHandler::HandlerInfo handlerInfo[] = {
   add("__ubsan_handle_sub_overflow", handleSubOverflow, false),
   add("__ubsan_handle_mul_overflow", handleMulOverflow, false),
   add("__ubsan_handle_divrem_overflow", handleDivRemOverflow, false),
+  
+  add("saib_collect_indirect", handleSaibCollectIndirect, false),
 
 #undef addDNR
 #undef add  
@@ -254,7 +258,7 @@ SpecialFunctionHandler::readStringAtAddress(ExecutionState &state,
 
   unsigned i;
   for (i = 0; i < mo->size - 1; i++) {
-    ref<Expr> cur = os->read8(i);
+    ref<Expr> cur = const_cast<ObjectState*>(os)->read8(i);
     cur = executor.toUnique(state, cur);
     assert(isa<ConstantExpr>(cur) && 
            "hit symbolic char while reading concrete string");
@@ -773,4 +777,23 @@ void SpecialFunctionHandler::handleDivRemOverflow(ExecutionState &state,
   executor.terminateStateOnError(state,
                                  "overflow on division or remainder",
                                  "overflow.err");
+}
+
+std::map<uint64_t, std::set<uint64_t> > indirect_call_set;
+
+void SpecialFunctionHandler::handleSaibCollectIndirect(ExecutionState &state,
+                                               KInstruction *target,
+                                               std::vector<ref<Expr> > &arguments) {
+  Instruction* inst = target->inst;
+  errs() << "inst's line: " << inst->getDebugLoc().getLine() << "\n";
+  ConstantExpr* target_val = dyn_cast<ConstantExpr>(arguments[0]);
+  assert(target_val);
+  uint64_t addr = target_val->getZExtValue();
+  indirect_call_set[inst->getDebugLoc().getLine()].insert(addr);
+  Function* func = getFunction(addr);
+  assert(func);
+  func->dump();
+  assert(!func->empty());  
+  std::vector< ref<Expr> > args;
+  executor.executeCall(state, target, func, args);
 }

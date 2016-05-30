@@ -35,6 +35,8 @@
 #include <cassert>
 #include <sstream>
 
+#include "Helper/LLDBHelper.h"
+
 using namespace llvm;
 using namespace klee;
 
@@ -278,17 +280,25 @@ isByteConcrete(i) => !isByteKnownSymbolic(i)
  */
 
 void ObjectState::fastRangeCheckOffset(ref<Expr> offset,
-                                       unsigned *base_r,
+                                       unsigned long *base_r,
                                        unsigned *size_r) const {
   *base_r = 0;
   *size_r = size;
 }
 
 void ObjectState::flushRangeForRead(unsigned rangeBase, 
-                                    unsigned rangeSize) const {
+                                    unsigned rangeSize) {
   if (!flushMask) flushMask = new BitArray(size, true);
  
   for (unsigned offset=rangeBase; offset<rangeBase+rangeSize; offset++) {
+    if(!object->lazy_populate.test(offset))
+    {
+      uint8_t value;
+      assert(get_mem(object->address+offset, 8, &value));
+      errs() << "write mem into os - addr: " << object->address + offset << " - " << int(value) << "\n";
+      write8(offset, value);
+      const_cast<MemoryObject*>(object)->lazy_populate.set(offset);
+    }
     if (!isByteFlushed(offset)) {
       if (isByteConcrete(offset)) {
         updates.extend(ConstantExpr::create(offset, Expr::Int32),
@@ -309,6 +319,7 @@ void ObjectState::flushRangeForWrite(unsigned rangeBase,
   if (!flushMask) flushMask = new BitArray(size, true);
 
   for (unsigned offset=rangeBase; offset<rangeBase+rangeSize; offset++) {
+    const_cast<MemoryObject*>(object)->lazy_populate.set(offset);
     if (!isByteFlushed(offset)) {
       if (isByteConcrete(offset)) {
         updates.extend(ConstantExpr::create(offset, Expr::Int32),
@@ -384,7 +395,15 @@ void ObjectState::setKnownSymbolic(unsigned offset,
 
 /***/
 
-ref<Expr> ObjectState::read8(unsigned offset) const {
+ref<Expr> ObjectState::read8(unsigned offset){
+  if(!object->lazy_populate.test(offset))
+  {
+    uint8_t value;
+    assert(get_mem(object->address+offset, 8, &value));
+    errs() << "write mem into os - addr: " << object->address + offset << " - " << int(value) << "\n";
+    write8(offset, value);
+    const_cast<MemoryObject*>(object)->lazy_populate.set(offset);
+  }
   if (isByteConcrete(offset)) {
     return ConstantExpr::create(concreteStore[offset], Expr::Int8);
   } else if (isByteKnownSymbolic(offset)) {
@@ -397,9 +416,10 @@ ref<Expr> ObjectState::read8(unsigned offset) const {
   }    
 }
 
-ref<Expr> ObjectState::read8(ref<Expr> offset) const {
+ref<Expr> ObjectState::read8(ref<Expr> offset){
   assert(!isa<ConstantExpr>(offset) && "constant offset passed to symbolic read8");
-  unsigned base, size;
+  unsigned long base;
+  unsigned size;
   fastRangeCheckOffset(offset, &base, &size);
   flushRangeForRead(base, size);
 
@@ -415,6 +435,7 @@ ref<Expr> ObjectState::read8(ref<Expr> offset) const {
 }
 
 void ObjectState::write8(unsigned offset, uint8_t value) {
+  const_cast<MemoryObject*>(object)->lazy_populate.set(offset);
   //assert(read_only == false && "writing to read-only object!");
   concreteStore[offset] = value;
   setKnownSymbolic(offset, 0);
@@ -424,6 +445,7 @@ void ObjectState::write8(unsigned offset, uint8_t value) {
 }
 
 void ObjectState::write8(unsigned offset, ref<Expr> value) {
+  const_cast<MemoryObject*>(object)->lazy_populate.set(offset);
   // can happen when ExtractExpr special cases
   if (ConstantExpr *CE = dyn_cast<ConstantExpr>(value)) {
     write8(offset, (uint8_t) CE->getZExtValue(8));
@@ -437,7 +459,8 @@ void ObjectState::write8(unsigned offset, ref<Expr> value) {
 
 void ObjectState::write8(ref<Expr> offset, ref<Expr> value) {
   assert(!isa<ConstantExpr>(offset) && "constant offset passed to symbolic write8");
-  unsigned base, size;
+  unsigned long base;
+  unsigned size;
   fastRangeCheckOffset(offset, &base, &size);
   flushRangeForWrite(base, size);
 
@@ -454,7 +477,7 @@ void ObjectState::write8(ref<Expr> offset, ref<Expr> value) {
 
 /***/
 
-ref<Expr> ObjectState::read(ref<Expr> offset, Expr::Width width) const {
+ref<Expr> ObjectState::read(ref<Expr> offset, Expr::Width width){
   // Truncate offset to 32-bits.
   offset = ZExtExpr::create(offset, Expr::Int32);
 
@@ -481,7 +504,7 @@ ref<Expr> ObjectState::read(ref<Expr> offset, Expr::Width width) const {
   return Res;
 }
 
-ref<Expr> ObjectState::read(unsigned offset, Expr::Width width) const {
+ref<Expr> ObjectState::read(unsigned offset, Expr::Width width){
   // Treat bool specially, it is the only non-byte sized write we allow.
   if (width == Expr::Bool)
     return ExtractExpr::create(read8(offset), 0, Expr::Bool);

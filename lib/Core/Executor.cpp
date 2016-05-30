@@ -103,9 +103,15 @@
 #include <errno.h>
 #include <cxxabi.h>
 
+#include "Helper/LLDBHelper.h"
+#include "Helper/MapsHelper.h"
+
 using namespace llvm;
 using namespace klee;
 
+namespace klee {
+  std::map<Instruction*, std::set<Function*> > indirect_call_set;
+}
 
 
 
@@ -524,6 +530,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
       }
 
       MemoryObject *mo = memory->allocate(size, false, true, i);
+      mo->setName(i->getName().data());
       ObjectState *os = bindObjectInState(state, mo, false);
       globalObjects.insert(std::make_pair(i, mo));
       globalAddresses.insert(std::make_pair(i, mo->getBaseExpr()));
@@ -550,6 +557,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
       MemoryObject *mo = memory->allocate(size, false, true, &*i);
       if (!mo)
         llvm::report_fatal_error("out of memory");
+      mo->setName(i->getName().data());        
       ObjectState *os = bindObjectInState(state, mo, false);
       globalObjects.insert(std::make_pair(i, mo));
       globalAddresses.insert(std::make_pair(i, mo->getBaseExpr()));
@@ -576,11 +584,24 @@ void Executor::initializeGlobals(ExecutionState &state) {
       const ObjectState *os = state.addressSpace.findObject(mo);
       assert(os);
       ObjectState *wos = state.addressSpace.getWriteable(mo, os);
-      
-      initializeGlobalObject(state, wos, i->getInitializer(), 0);
+      uint64_t value;
+      if(get_reg(i->getName(), value))
+        initializeGlobalObject(state, wos, ConstantInt::get(dyn_cast<PointerType>(i->getType())->getElementType(), value), 0);
+      else
+        initializeGlobalObject(state, wos, i->getInitializer(), 0);
       // if(i->isConstant()) os->setReadOnly(true);
     }
   }
+  
+  GlobalVariable* rsp = m->getGlobalVariable("RSP");
+  uint64_t stack_addr, stack_endaddr;
+  get_stack_range(&stack_addr, &stack_endaddr);
+  uint64_t stack_size = stack_endaddr - stack_addr;
+  errs() << "stack: " << stack_addr << " ~ " << stack_endaddr << "\n";
+  MemoryObject *mo = memory->allocateFixed(stack_addr, stack_size, rsp);
+  mo->setName("stack");
+  mo->lazy_populate.reset();
+  bindObjectInState(state, mo, false);
 }
 
 void Executor::branch(ExecutionState &state, 
@@ -1205,6 +1226,7 @@ void Executor::executeCall(ExecutionState &state,
     // instead of the actual instruction, since we can't make a KInstIterator
     // from just an instruction (unlike LLVM).
     KFunction *kf = kmodule->functionMap[f];
+    assert(kf);
     state.pushFrame(state.prevPC, kf);
     state.pc = kf->instructions;
         
@@ -1387,6 +1409,8 @@ static inline const llvm::fltSemantics * fpWidthToSemantics(unsigned width) {
 
 void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   Instruction *i = ki->inst;
+  llvm::errs() << "==========interprete inst==========\n";
+  i->dump();
   switch (i->getOpcode()) {
     // Control flow
   case Instruction::Ret: {
@@ -1443,6 +1467,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
           }
 
           bindLocal(kcaller, state, result);
+          llvm::errs() << "=====return value=====\n";
+          result->dump();
+          llvm::errs() << "\n";
         }
       } else {
         // We check that the return value has no users instead of
@@ -1487,6 +1514,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
       assert(bi->getCondition() == bi->getOperand(0) &&
              "Wrong operand index!");
       ref<Expr> cond = eval(ki, 0, state).value;
+      llvm::errs() << "=====condition value=====\n";
+      cond->dump();
+      llvm::errs() << "\n";
       Executor::StatePair branches = fork(state, cond, false);
 
       // NOTE: There is a hidden dependency here, markBranchVisited
@@ -1506,9 +1536,15 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   case Instruction::Switch: {
     SwitchInst *si = cast<SwitchInst>(i);
     ref<Expr> cond = eval(ki, 0, state).value;
+    llvm::errs() << "=====condition value=====\n";
+    cond->dump();
+    llvm::errs() << "\n";
     BasicBlock *bb = si->getParent();
 
     cond = toUnique(state, cond);
+    llvm::errs() << "=====condition value after toUnique=====\n";
+    cond->dump();
+    llvm::errs() << "\n";
     if (ConstantExpr *CE = dyn_cast<ConstantExpr>(cond)) {
       // Somewhat gross to create these all the time, but fine till we
       // switch to an internal rep.
@@ -1593,6 +1629,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
     unsigned numArgs = cs.arg_size();
     Value *fp = cs.getCalledValue();
+    llvm::errs() << "=====called value=====\n";
+    fp->dump();
+    llvm::errs() << "\n";
     Function *f = getTargetFunction(fp, state);
 
     // Skip debug intrinsics, we can't evaluate their metadata arguments.
@@ -1655,7 +1694,14 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
       executeCall(state, ki, f, arguments);
     } else {
+      llvm::errs() << "=====find indirect call=====\n";
+      i->dump();
+      llvm::errs() << "\n";
+      indirect_call_set[i];
       ref<Expr> v = eval(ki, 0, state).value;
+      llvm::errs() << "=====called value after eval=====\n";
+      v->dump();
+      llvm::errs() << "\n";
 
       ExecutionState *free = &state;
       bool hasInvalid = false, first = true;
@@ -1667,12 +1713,19 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         ref<ConstantExpr> value;
         bool success = solver->getValue(*free, v, value);
         assert(success && "FIXME: Unhandled solver failure");
+        llvm::errs() << "=====called value after getValue=====\n";
+        value->dump();
+        llvm::errs() << "\n";
         (void) success;
         StatePair res = fork(*free, EqExpr::create(v, value), true);
         if (res.first) {
           uint64_t addr = value->getZExtValue();
           if (legalFunctions.count(addr)) {
             f = (Function*) addr;
+            llvm::errs() << "=====found legal funtion=====\n";
+            f->dump();
+            llvm::errs() << "\n";
+            indirect_call_set[i].insert(f);
 
             // Don't give warning on unique resolution
             if (res.second || !first)
@@ -1702,6 +1755,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     ref<Expr> result = eval(ki, state.incomingBBIndex * 2, state).value;
 #endif
     bindLocal(ki, state, result);
+    llvm::errs() << "=====result value=====\n";
+    result->dump();
+    llvm::errs() << "\n";
     break;
   }
 
@@ -1712,6 +1768,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     ref<Expr> fExpr = eval(ki, 2, state).value;
     ref<Expr> result = SelectExpr::create(cond, tExpr, fExpr);
     bindLocal(ki, state, result);
+    llvm::errs() << "=====result value=====\n";
+    result->dump();
+    llvm::errs() << "\n";
     break;
   }
 
@@ -1724,21 +1783,33 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   case Instruction::Add: {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right = eval(ki, 1, state).value;
-    bindLocal(ki, state, AddExpr::create(left, right));
+    ref<Expr> result = AddExpr::create(left, right);
+    bindLocal(ki, state, result);
+    llvm::errs() << "=====result value=====\n";
+    result->dump();
+    llvm::errs() << "\n";
     break;
   }
 
   case Instruction::Sub: {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right = eval(ki, 1, state).value;
-    bindLocal(ki, state, SubExpr::create(left, right));
+    ref<Expr> result = SubExpr::create(left, right);
+    bindLocal(ki, state, result);
+    llvm::errs() << "=====result value=====\n";
+    result->dump();
+    llvm::errs() << "\n";
     break;
   }
  
   case Instruction::Mul: {
     ref<Expr> left = eval(ki, 0, state).value;
     ref<Expr> right = eval(ki, 1, state).value;
-    bindLocal(ki, state, MulExpr::create(left, right));
+    ref<Expr> result = MulExpr::create(left, right);
+    bindLocal(ki, state, result);
+    llvm::errs() << "=====result value=====\n";
+    result->dump();
+    llvm::errs() << "\n";
     break;
   }
 
@@ -1747,6 +1818,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     ref<Expr> right = eval(ki, 1, state).value;
     ref<Expr> result = UDivExpr::create(left, right);
     bindLocal(ki, state, result);
+    llvm::errs() << "=====result value=====\n";
+    result->dump();
+    llvm::errs() << "\n";
     break;
   }
 
@@ -1755,6 +1829,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     ref<Expr> right = eval(ki, 1, state).value;
     ref<Expr> result = SDivExpr::create(left, right);
     bindLocal(ki, state, result);
+    llvm::errs() << "=====result value=====\n";
+    result->dump();
+    llvm::errs() << "\n";
     break;
   }
 
@@ -1763,6 +1840,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     ref<Expr> right = eval(ki, 1, state).value;
     ref<Expr> result = URemExpr::create(left, right);
     bindLocal(ki, state, result);
+    llvm::errs() << "=====result value=====\n";
+    result->dump();
+    llvm::errs() << "\n";
     break;
   }
  
@@ -1771,6 +1851,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     ref<Expr> right = eval(ki, 1, state).value;
     ref<Expr> result = SRemExpr::create(left, right);
     bindLocal(ki, state, result);
+    llvm::errs() << "=====result value=====\n";
+    result->dump();
+    llvm::errs() << "\n";
     break;
   }
 
@@ -1779,6 +1862,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     ref<Expr> right = eval(ki, 1, state).value;
     ref<Expr> result = AndExpr::create(left, right);
     bindLocal(ki, state, result);
+    llvm::errs() << "=====result value=====\n";
+    result->dump();
+    llvm::errs() << "\n";
     break;
   }
 
@@ -1787,6 +1873,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     ref<Expr> right = eval(ki, 1, state).value;
     ref<Expr> result = OrExpr::create(left, right);
     bindLocal(ki, state, result);
+    llvm::errs() << "=====result value=====\n";
+    result->dump();
+    llvm::errs() << "\n";
     break;
   }
 
@@ -1795,6 +1884,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     ref<Expr> right = eval(ki, 1, state).value;
     ref<Expr> result = XorExpr::create(left, right);
     bindLocal(ki, state, result);
+    llvm::errs() << "=====result value=====\n";
+    result->dump();
+    llvm::errs() << "\n";
     break;
   }
 
@@ -1803,6 +1895,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     ref<Expr> right = eval(ki, 1, state).value;
     ref<Expr> result = ShlExpr::create(left, right);
     bindLocal(ki, state, result);
+    llvm::errs() << "=====result value=====\n";
+    result->dump();
+    llvm::errs() << "\n";
     break;
   }
 
@@ -1811,6 +1906,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     ref<Expr> right = eval(ki, 1, state).value;
     ref<Expr> result = LShrExpr::create(left, right);
     bindLocal(ki, state, result);
+    llvm::errs() << "=====result value=====\n";
+    result->dump();
+    llvm::errs() << "\n";
     break;
   }
 
@@ -1819,6 +1917,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     ref<Expr> right = eval(ki, 1, state).value;
     ref<Expr> result = AShrExpr::create(left, right);
     bindLocal(ki, state, result);
+    llvm::errs() << "=====result value=====\n";
+    result->dump();
+    llvm::errs() << "\n";
     break;
   }
 
@@ -1834,6 +1935,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
       ref<Expr> right = eval(ki, 1, state).value;
       ref<Expr> result = EqExpr::create(left, right);
       bindLocal(ki, state, result);
+      llvm::errs() << "=====result value=====\n";
+      result->dump();
+      llvm::errs() << "\n";
       break;
     }
 
@@ -1842,6 +1946,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
       ref<Expr> right = eval(ki, 1, state).value;
       ref<Expr> result = NeExpr::create(left, right);
       bindLocal(ki, state, result);
+      llvm::errs() << "=====result value=====\n";
+      result->dump();
+      llvm::errs() << "\n";
       break;
     }
 
@@ -1850,6 +1957,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
       ref<Expr> right = eval(ki, 1, state).value;
       ref<Expr> result = UgtExpr::create(left, right);
       bindLocal(ki, state,result);
+      llvm::errs() << "=====result value=====\n";
+      result->dump();
+      llvm::errs() << "\n";
       break;
     }
 
@@ -1858,6 +1968,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
       ref<Expr> right = eval(ki, 1, state).value;
       ref<Expr> result = UgeExpr::create(left, right);
       bindLocal(ki, state, result);
+      llvm::errs() << "=====result value=====\n";
+      result->dump();
+      llvm::errs() << "\n";
       break;
     }
 
@@ -1866,6 +1979,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
       ref<Expr> right = eval(ki, 1, state).value;
       ref<Expr> result = UltExpr::create(left, right);
       bindLocal(ki, state, result);
+      llvm::errs() << "=====result value=====\n";
+      result->dump();
+      llvm::errs() << "\n";
       break;
     }
 
@@ -1874,6 +1990,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
       ref<Expr> right = eval(ki, 1, state).value;
       ref<Expr> result = UleExpr::create(left, right);
       bindLocal(ki, state, result);
+      llvm::errs() << "=====result value=====\n";
+      result->dump();
+      llvm::errs() << "\n";
       break;
     }
 
@@ -1882,6 +2001,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
       ref<Expr> right = eval(ki, 1, state).value;
       ref<Expr> result = SgtExpr::create(left, right);
       bindLocal(ki, state, result);
+      llvm::errs() << "=====result value=====\n";
+      result->dump();
+      llvm::errs() << "\n";
       break;
     }
 
@@ -1890,6 +2012,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
       ref<Expr> right = eval(ki, 1, state).value;
       ref<Expr> result = SgeExpr::create(left, right);
       bindLocal(ki, state, result);
+      llvm::errs() << "=====result value=====\n";
+      result->dump();
+      llvm::errs() << "\n";
       break;
     }
 
@@ -1898,6 +2023,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
       ref<Expr> right = eval(ki, 1, state).value;
       ref<Expr> result = SltExpr::create(left, right);
       bindLocal(ki, state, result);
+      llvm::errs() << "=====result value=====\n";
+      result->dump();
+      llvm::errs() << "\n";
       break;
     }
 
@@ -1906,6 +2034,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
       ref<Expr> right = eval(ki, 1, state).value;
       ref<Expr> result = SleExpr::create(left, right);
       bindLocal(ki, state, result);
+      llvm::errs() << "=====result value=====\n";
+      result->dump();
+      llvm::errs() << "\n";
       break;
     }
 
@@ -1970,6 +2101,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
                                            0,
                                            getWidthForLLVMType(ci->getType()));
     bindLocal(ki, state, result);
+    llvm::errs() << "=====result value=====\n";
+    result->dump();
+    llvm::errs() << "\n";
     break;
   }
   case Instruction::ZExt: {
@@ -1977,6 +2111,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     ref<Expr> result = ZExtExpr::create(eval(ki, 0, state).value,
                                         getWidthForLLVMType(ci->getType()));
     bindLocal(ki, state, result);
+    llvm::errs() << "=====result value=====\n";
+    result->dump();
+    llvm::errs() << "\n";
     break;
   }
   case Instruction::SExt: {
@@ -1984,6 +2121,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     ref<Expr> result = SExtExpr::create(eval(ki, 0, state).value,
                                         getWidthForLLVMType(ci->getType()));
     bindLocal(ki, state, result);
+    llvm::errs() << "=====result value=====\n";
+    result->dump();
+    llvm::errs() << "\n";
     break;
   }
 
@@ -1991,20 +2131,31 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     CastInst *ci = cast<CastInst>(i);
     Expr::Width pType = getWidthForLLVMType(ci->getType());
     ref<Expr> arg = eval(ki, 0, state).value;
-    bindLocal(ki, state, ZExtExpr::create(arg, pType));
+    ref<Expr> result = ZExtExpr::create(arg, pType);
+    bindLocal(ki, state, result);
+    llvm::errs() << "=====result value=====\n";
+    result->dump();
+    llvm::errs() << "\n";
     break;
   } 
   case Instruction::PtrToInt: {
     CastInst *ci = cast<CastInst>(i);
     Expr::Width iType = getWidthForLLVMType(ci->getType());
     ref<Expr> arg = eval(ki, 0, state).value;
-    bindLocal(ki, state, ZExtExpr::create(arg, iType));
+    ref<Expr> result = ZExtExpr::create(arg, iType);
+    bindLocal(ki, state, result);
+    llvm::errs() << "=====result value=====\n";
+    result->dump();
+    llvm::errs() << "\n";
     break;
   }
 
   case Instruction::BitCast: {
     ref<Expr> result = eval(ki, 0, state).value;
     bindLocal(ki, state, result);
+    llvm::errs() << "=====result value=====\n";
+    result->dump();
+    llvm::errs() << "\n";
     break;
   }
 
@@ -2791,13 +2942,13 @@ void Executor::callExternalFunction(ExecutionState &state,
   if (specialFunctionHandler->handle(state, function, target, arguments))
     return;
   
-  if (NoExternals && !okExternals.count(function->getName())) {
+/*  if (NoExternals && !okExternals.count(function->getName())) {
     llvm::errs() << "KLEE:ERROR: Calling not-OK external function : "
                  << function->getName().str() << "\n";
     terminateStateOnError(state, "externals disallowed", "user.err");
     return;
   }
-
+*/
   // normal external function handling path
   // allocate 128 bits for each argument (+return value) to support fp80's;
   // we could iterate through all the arguments first and determine the exact
@@ -2849,17 +3000,43 @@ void Executor::callExternalFunction(ExecutionState &state,
       klee_warning_once(function, "%s", os.str().c_str());
   }
   
-  bool success = externalDispatcher->executeCall(function, target->inst, args);
-  if (!success) {
+  bool success;
+  if (NoExternals && okExternals.count(function->getName()))
+    success = externalDispatcher->executeCall(function, target->inst, args);
+/*  if (!success) {
     terminateStateOnError(state, "failed external call: " + function->getName(),
                           "external.err");
     return;
   }
-
+*/
   if (!state.addressSpace.copyInConcretes()) {
     terminateStateOnError(state, "external modified read-only object",
                           "external.err");
     return;
+  }
+
+  for (std::vector<ref<Expr> >::iterator ai = arguments.begin(), 
+       ae = arguments.end(); ai!=ae; ++ai) {
+	ResolutionList rl;  
+    solver->setTimeout(coreSolverTimeout);
+    bool incomplete = state.addressSpace.resolve(state, solver, *ai, rl, 0, coreSolverTimeout);
+    if(incomplete) {
+      terminateStateEarly(state, "Query timed out (bounds check).");
+    }
+    solver->setTimeout(0);
+    ExecutionState* unbound = &state;
+
+    for (ResolutionList::iterator i = rl.begin(), ie = rl.end(); i != ie; ++i) {
+      const MemoryObject *mo = i->first;
+      ref<Expr> inBounds = mo->getBoundsCheckPointer(*ai);
+    
+      StatePair branches = fork(*unbound, inBounds, true);
+      ExecutionState *bound = branches.first;
+
+      if (bound) {
+        executeMakeSymbolic(*bound, mo, std::string("noname"));
+      }
+    }
   }
 
   LLVM_TYPE_Q Type *resultType = target->inst->getType();
@@ -2867,6 +3044,14 @@ void Executor::callExternalFunction(ExecutionState &state,
     ref<Expr> e = ConstantExpr::fromMemory((void*) args, 
                                            getWidthForLLVMType(resultType));
     bindLocal(target, state, e);
+    llvm::errs() << "==========result value==========\n";
+    e->dump();
+    llvm::errs() << "\n";
+
+  if (!success) {
+    e->from_extern = true;
+  }
+
   }
 }
 
@@ -2934,14 +3119,15 @@ void Executor::executeAlloc(ExecutionState &state,
       if (zeroMemory) {
         os->initializeToZero();
       } else {
-        os->initializeToRandom();
+          os->initializeToRandom();
+          executeMakeSymbolic(state, mo, (target->inst->hasName()?target->inst->getName().data():std::string("noname")));
       }
       bindLocal(target, state, mo->getBaseExpr());
       
       if (reallocFrom) {
         unsigned count = std::min(reallocFrom->size, os->size);
         for (unsigned i=0; i<count; i++)
-          os->write(i, reallocFrom->read8(i));
+          os->write(i, const_cast<ObjectState*>(reallocFrom)->read8(i));
         state.addressSpace.unbindObject(reallocFrom->getObject());
       }
     }
@@ -3148,14 +3334,22 @@ void Executor::executeMemoryOperation(ExecutionState &state,
         } else {
           ObjectState *wos = state.addressSpace.getWriteable(mo, os);
           wos->write(offset, value);
+          llvm::errs() << "==========writing memeory==========\n";
+          value->dump();
+          llvm::errs() << "\n";
+          if(value->from_extern)
+            executeMakeSymbolic(state, mo, std::string("noname"));
         }          
       } else {
-        ref<Expr> result = os->read(offset, type);
+        ref<Expr> result = const_cast<ObjectState*>(os)->read(offset, type);
         
         if (interpreterOpts.MakeConcreteSymbolic)
           result = replaceReadWithSymbolic(state, result);
         
         bindLocal(target, state, result);
+        llvm::errs() << "==========read memeory==========\n";
+        result->dump();
+        llvm::errs() << "\n";
       }
 
       return;
@@ -3192,9 +3386,11 @@ void Executor::executeMemoryOperation(ExecutionState &state,
         } else {
           ObjectState *wos = bound->addressSpace.getWriteable(mo, os);
           wos->write(mo->getOffsetExpr(address), value);
+          if(value->from_extern)
+            executeMakeSymbolic(state, mo, std::string("noname"));
         }
       } else {
-        ref<Expr> result = os->read(mo->getOffsetExpr(address), type);
+        ref<Expr> result = const_cast<ObjectState*>(os)->read(mo->getOffsetExpr(address), type);
         bindLocal(target, *bound, result);
       }
     }
@@ -3394,6 +3590,20 @@ void Executor::runFunctionAsMain(Function *f,
 
   if (statsTracker)
     statsTracker->done();
+
+  llvm::errs() << "==========finish==========\n";
+  for(auto iter = indirect_call_set.begin(); iter != indirect_call_set.end(); ++iter)
+  {
+    llvm::errs() << "=====indirect call=====\n";
+    iter->first->dump();
+    unsigned i = 0;
+    for(auto func_iter = iter->second.begin(); func_iter != iter->second.end(); ++func_iter)
+    {
+      llvm::errs() << "=====target function " << i << " =====\n";
+      (*func_iter)->dump();
+      ++i;
+    }
+  }
 }
 
 unsigned Executor::getPathStreamID(const ExecutionState &state) {
