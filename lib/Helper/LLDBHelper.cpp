@@ -166,7 +166,6 @@ string omit_case(string name)
 
 SBValue get_child(SBValue val, string reg_name)
 {
-  // if(tolower(reg_name[0]))
   if(!omit_case(val.GetName()).compare(omit_case(reg_name)))
     return val;
   SBValue child;
@@ -283,7 +282,7 @@ unsigned long get_addr(string name)
     }
     else if(func_sym.IsValid())
     {
-      cerr << "judge sym: " << (func_sym.GetName()==NULL?"noname":func_sym.GetName()) << " / " << (func_sym.GetMangledName()?"noname":func_sym.GetMangledName()) << endl;
+      cerr << "judge sym: " << (func_sym.GetName()==NULL?"noname":func_sym.GetName()) << " / " << (func_sym.GetMangledName()==NULL?"noname":func_sym.GetMangledName()) << endl;
       if(!name.compare(func_sym.GetName()) || !name.compare(func_sym.GetMangledName()))
       {
         SBAddress addr = func_sym.GetStartAddress();
@@ -343,7 +342,7 @@ string get_mangled_name(string name)
     }
     else if(func_sym.IsValid())
     {
-      cerr << "judge sym: " << (func_sym.GetName()==NULL?"noname":func_sym.GetName()) << " / " << (func_sym.GetMangledName()?"noname":func_sym.GetMangledName()) << endl;
+      cerr << "judge sym: " << (func_sym.GetName()==NULL?"noname":func_sym.GetName()) << " / " << (func_sym.GetMangledName()==NULL?"noname":func_sym.GetMangledName()) << endl;
       if(!name.compare(func_sym.GetName()) || !name.compare(func_sym.GetMangledName()))
       {
         SBAddress addr = func_sym.GetStartAddress();
