@@ -64,6 +64,7 @@ protected:
   virtual void visit(BasicBlock *BB, MachineInstr* CurInst);
 #define declare_visit(name) \
   void visit##name(BasicBlock *BB, MachineInstr* I)
+
   declare_visit(MOV32r);
   declare_visit(MOV32rm);
   declare_visit(MOV64r);
@@ -73,37 +74,49 @@ protected:
   declare_visit(MOV64m);
   declare_visit(MOV64mi32);
   declare_visit(MOV64rm);
+
   declare_visit(LEA64r);
+
   declare_visit(PUSH64r);
   declare_visit(POP64r);
-  declare_visit(LEAVE64);
+
   declare_visit(ADD64r);
   declare_visit(ADD32ri8);
   declare_visit(ADD64ri8);
+
   declare_visit(SUB64i32);
   declare_visit(SUB64ri8);
   declare_visit(SUB64r);
+
   declare_visit(SAR64r1);
   declare_visit(SAR64ri);
   declare_visit(SHR64ri);
+
   declare_visit(AND64ri8);
   declare_visit(XOR32r);
+
   declare_visit(CMP32ri8);
   declare_visit(CMP64ri8);
   declare_visit(CMP64r);
   declare_visit(CMP32mi8);
   declare_visit(CMP64mi8);
   declare_visit(CMP8mi);
+
+  declare_visit(TEST32rr);
   declare_visit(TEST64rr);
+
   declare_visit(JMP64r);
   declare_visit(JMP);
   declare_visit(JA_1);
   declare_visit(JE_1);
   declare_visit(JNE_1);
+
   declare_visit(CALL64pcrel32);
   declare_visit(CALL64r);
   declare_visit(CALL64m);
   declare_visit(RET);
+  declare_visit(LEAVE64);
+
   declare_visit(NOOP);
 
   /// Error printing

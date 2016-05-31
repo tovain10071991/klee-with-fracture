@@ -57,38 +57,51 @@ void IREmitter::initDispacher()
   visitDispachers[X86::MOV64mr] = &IREmitter::visitMOV64m;
   visitDispachers[X86::MOV64mi32] = &IREmitter::visitMOV64mi32;
   visitDispachers[X86::MOV64rm] = &IREmitter::visitMOV64rm;
+  
   visitDispachers[X86::LEA64r] = &IREmitter::visitLEA64r;
+  
   visitDispachers[X86::PUSH64r] = &IREmitter::visitPUSH64r;
   visitDispachers[X86::POP64r] = &IREmitter::visitPOP64r;
+  
   visitDispachers[X86::ADD64rr] = &IREmitter::visitADD64r;
   visitDispachers[X86::ADD32ri8] = &IREmitter::visitADD32ri8;
   visitDispachers[X86::ADD64ri8] = &IREmitter::visitADD64ri8;
+  
   visitDispachers[X86::SUB64i32] = &IREmitter::visitSUB64i32;
   visitDispachers[X86::SUB64ri8] = &IREmitter::visitSUB64ri8;
   visitDispachers[X86::SUB64rr] = &IREmitter::visitSUB64r;
+  
   visitDispachers[X86::SAR64r1] = &IREmitter::visitSAR64r1;
   visitDispachers[X86::SAR64ri] = &IREmitter::visitSAR64ri;
   visitDispachers[X86::SHR64ri] = &IREmitter::visitSHR64ri;
+  
   visitDispachers[X86::AND64ri8] = &IREmitter::visitAND64ri8;
   visitDispachers[X86::XOR32rr] = &IREmitter::visitXOR32r;
+  
   visitDispachers[X86::CMP32ri8] = &IREmitter::visitCMP32ri8;
   visitDispachers[X86::CMP64ri8] = &IREmitter::visitCMP64ri8;
   visitDispachers[X86::CMP64rr] = &IREmitter::visitCMP64r;
   visitDispachers[X86::CMP32mi8] = &IREmitter::visitCMP32mi8;
   visitDispachers[X86::CMP64mi8] = &IREmitter::visitCMP64mi8;
   visitDispachers[X86::CMP8mi] = &IREmitter::visitCMP8mi;
+  
+  visitDispachers[X86::TEST32rr] = &IREmitter::visitTEST32rr;
   visitDispachers[X86::TEST64rr] = &IREmitter::visitTEST64rr;
+  
   visitDispachers[X86::JMP64r] = &IREmitter::visitJMP64r;
   visitDispachers[X86::JMP_1] = &IREmitter::visitJMP;
   visitDispachers[X86::JMP64pcrel32] = &IREmitter::visitJMP;
   visitDispachers[X86::JA_1] = &IREmitter::visitJA_1;
   visitDispachers[X86::JE_1] = &IREmitter::visitJE_1;
   visitDispachers[X86::JNE_1] = &IREmitter::visitJNE_1;
+  
   visitDispachers[X86::CALL64pcrel32] = &IREmitter::visitCALL64pcrel32;
   visitDispachers[X86::CALL64r] = &IREmitter::visitCALL64r;
   visitDispachers[X86::CALL64m] = &IREmitter::visitCALL64m;
   visitDispachers[X86::RET] = &IREmitter::visitRET;
   visitDispachers[X86::LEAVE64] = &IREmitter::visitLEAVE64;
+  
+  visitDispachers[X86::NOOP] = &IREmitter::visitNOOP;
   visitDispachers[X86::NOOPL] = &IREmitter::visitNOOP;
   visitDispachers[X86::NOOPW] = &IREmitter::visitNOOP;
   visitDispachers[X86::REP_PREFIX] = &IREmitter::visitNOOP;
@@ -277,7 +290,7 @@ Constant* IREmitter::get_imm_val(int64_t imm, unsigned init_size, unsigned final
 }
 
 #define compute_AF \
-  IRB->CreateICmpEQ(IRB->CreateAnd(IRB->CreateXor(IRB->CreateXor(result, lhs_val), rhs_val), 16), ConstantInt::get(result->getType(), 0))
+  IRB->CreateICmpNE(IRB->CreateAnd(IRB->CreateXor(IRB->CreateXor(result, lhs_val), rhs_val), 16), ConstantInt::get(result->getType(), 0))
 
 #define compute_PF \
 ({ \
@@ -1212,6 +1225,34 @@ define_visit(CMP8mi)
   store_SF_val(I->getOpcode(), lhs_val, rhs_val, result);
   store_CF_val(I->getOpcode(), lhs_val, rhs_val, result);
   store_OF_val(I->getOpcode(), lhs_val, rhs_val, result);
+}
+
+define_visit(TEST32rr)
+{
+  assert(I->getNumOperands()==3 && "opr's num is not 3");
+  MachineOperand& lhs_opr = I->getOperand(0);
+  assert(lhs_opr.isReg() && "opr 0(lhs reg) is not reg");
+  MachineOperand& rhs_opr = I->getOperand(1);
+  assert(rhs_opr.isReg() && "opr 1(rhs reg) is not reg");
+  assert(I->getOperand(2).isReg() && I->getOperand(2).getReg()==X86::EFLAGS && "opr 2(efalgs) is not eflags");
+  
+  IRB->SetInsertPoint(BB);
+  LLVMContext* context = Dec->getContext();
+
+  // read lhs
+  Value* lhs_val = get_reg_val(lhs_opr.getReg());
+
+  //read rhs
+  Value* rhs_val = get_reg_val(rhs_opr.getReg());
+
+  // compute
+  Value* result = IRB->CreateAnd(lhs_val, rhs_val);
+
+  store_PF_val(I->getOpcode(), lhs_val, rhs_val, result);
+  store_ZF_val(I->getOpcode(), lhs_val, rhs_val, result);
+  store_SF_val(I->getOpcode(), lhs_val, rhs_val, result);
+  IRB->CreateStore(ConstantInt::getFalse(*context), Dec->getModule()->getGlobalVariable("CF"));
+  IRB->CreateStore(ConstantInt::getFalse(*context), Dec->getModule()->getGlobalVariable("OF"));
 }
 
 define_visit(TEST64rr)

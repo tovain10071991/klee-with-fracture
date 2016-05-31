@@ -23,7 +23,8 @@ using namespace std;
 using namespace fracture;
 using namespace llvm;
 
-static map<unsigned long, Decompiler*> decompilers;
+static map<unsigned long, Disassembler*> disassemblers;
+// static map<unsigned long, Decompiler*> decompilers;
 static MCDirector* mcd;
 Module* module;
 
@@ -81,9 +82,6 @@ Module* get_module(string binary)
 
   create_debugger(obj);
 
-  Disassembler* disassembler = new Disassembler(mcd, obj, NULL, outs(), outs());
-  decompilers[0] = new Decompiler(disassembler, NULL, nulls(), nulls());
-
   init_module();
   return module;
 }
@@ -91,39 +89,49 @@ Module* get_module(string binary)
 Decompiler* get_decompiler(unsigned long addr)
 {
   unsigned long base = get_base(addr);
-  if(decompilers.find(base)!=decompilers.end())
-    return decompilers[base];
-  
-  object::ObjectFile* obj = get_object(addr);
-  Disassembler* disassembler = new Disassembler(mcd, obj, NULL, outs(), outs());
-  Decompiler* decompiler = new Decompiler(disassembler, NULL, nulls(), nulls());
-  decompilers[base] = decompiler;
+  if(disassemblers.find(base)==disassemblers.end())
+  {
+    object::ObjectFile* obj = get_object(addr);
+    disassemblers[base] = new Disassembler(mcd, obj, NULL, outs(), outs());
+  }
+  Decompiler* decompiler = new Decompiler(disassemblers[base], NULL, nulls(), nulls());
   return decompiler;
 }
 
-Function* getFunction(unsigned long addr)
+Function* get_first_func(unsigned long addr)
 {
   Decompiler* decompiler = get_decompiler(addr);
-  Function* func = decompiler->getFunctionByAddr(addr);
+  Function* func = decompiler->decompileFunction(get_unload_addr(addr));
   assert(!func->empty());
+  decompiler->getModule()->dump();
   if(func->getParent()!=module)
   {
-    // delete module;
-    // init_module();
     string error;
-    for(auto dec_iter = decompilers.begin(); dec_iter != decompilers.end(); ++dec_iter)
-    {
-      if(Linker::LinkModules(module, dec_iter->second->getModule(), Linker::LinkerMode::PreserveSource, &error))
-        errx(-1, "link module failed: %s", error.c_str());
-    }
+    if(Linker::LinkModules(module, decompiler->getModule(), Linker::LinkerMode::PreserveSource, &error))
+      errx(-1, "link module failed: %s", error.c_str());
   }
   func = module->getFunction(func->getName());
   assert(func);
   return func;
 }
 
-Function* getFunction(string func_name)
+Function* get_first_func(string func_name)
 {
   unsigned long addr = get_addr(func_name);
-  return getFunction(addr);
+  return get_first_func(addr);
+}
+
+Module* get_module_with_function(unsigned long addr)
+{
+  Decompiler* decompiler = get_decompiler(addr);
+  Function* func = decompiler->decompileFunction(get_unload_addr(addr));
+  assert(!func->empty());
+  Module* mdl = decompiler->getModule();
+  return mdl;
+}
+
+Module* get_module_with_function(string func_name)
+{
+  unsigned long addr = get_addr(func_name);
+  return get_module_with_function(addr);
 }

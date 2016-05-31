@@ -130,6 +130,8 @@ namespace klee {
 
     /// Return an id for the given constant, creating a new one if necessary.
     unsigned getConstantID(llvm::Constant *c, KInstruction* ki);
+    
+    llvm::Function* get_func(std::string name);
   };
 } // End klee namespace
 

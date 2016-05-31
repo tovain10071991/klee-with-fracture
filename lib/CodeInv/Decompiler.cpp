@@ -23,6 +23,8 @@
 
 #include <err.h>
 
+#include "Helper/LLDBHelper.h"
+
 using namespace llvm;
 
 namespace fracture {
@@ -395,7 +397,11 @@ Function* Decompiler::getFunctionByAddr(uint64_t addr)
     if(Addr==addr)
       return iter;
   }
-  return decompileFunction(addr);
+  FunctionType *FType = FunctionType::get(Type::getPrimitiveType(*Context, Type::VoidTyID), false);
+  AttributeSet AS;
+  AS = AS.addAttribute(*Context, AttributeSet::FunctionIndex, "Address", Twine(addr).str());
+  Function *F = cast<Function>(Mod->getOrInsertFunction(get_func_name(addr), FType, AS));
+  return F;
 }
 
 } // End namespace fracture

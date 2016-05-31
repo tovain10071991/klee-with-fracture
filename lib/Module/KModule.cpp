@@ -58,6 +58,8 @@
 
 #include <sstream>
 
+#include <Helper/DecompileHelper.h>
+
 using namespace llvm;
 using namespace klee;
 
@@ -436,7 +438,7 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
 
   /* Build shadow structures */
 
-  infos = new InstructionInfoTable(mainModule);  
+  infos = new InstructionInfoTable(mainModule);
   
   for (Module::iterator it = mainModule->begin(), ie = mainModule->end();
        it != ie; ++it) {
@@ -516,6 +518,15 @@ static int getOperandNum(Value *v,
   } else {
     assert(isa<Constant>(v));
     Constant *c = cast<Constant>(v);
+    if(GlobalVariable* gv = dyn_cast<GlobalVariable>(c))
+    {
+      if(gv->isDeclaration())
+      {
+        GlobalVariable* defined_gv = km->mainModule->getGlobalVariable(gv->getName());
+        assert(defined_gv && !defined_gv->isDeclaration());
+        c = defined_gv;
+      }
+    }
     return -(km->getConstantID(c, ki) + 2);
   }
 }
@@ -594,4 +605,42 @@ KFunction::~KFunction() {
   for (unsigned i=0; i<numInstructions; ++i)
     delete instructions[i];
   delete[] instructions;
+}
+
+Function* KModule::get_func(std::string name)
+{
+  Function* func = NULL;
+  auto mdl_iter = modules.begin();
+  for(; mdl_iter != modules.end(); ++mdl_iter)
+  {
+    func = (*mdl_iter)->getFunction(name);
+    if(!func)
+      continue;
+    if(func->isDeclaration())
+      continue;
+    break;
+  }
+  if(func && !func->isDeclaration())
+  {
+    for(; mdl_iter != modules.end(); ++mdl_iter)
+      assert(!(*mdl_iter)->getFunction(name) || (*mdl_iter)->getFunction(name)->isDeclaration());
+    return func;
+  }
+  Module* mdl = get_module_with_function(name);
+  modules.insert(mdl);
+  
+  infos->addModuleInfo(mdl);
+  
+  func = mdl->getFunction(name);
+  assert(!func->isDeclaration());
+  
+  KFunction *kf = new KFunction(func, this);
+  for (unsigned i=0; i<kf->numInstructions; ++i) {
+    KInstruction *ki = kf->instructions[i];
+    ki->info = &infos->getInfo(ki->inst);
+  }
+  functions.push_back(kf);
+  functionMap.insert(std::make_pair(func, kf));
+
+  return func;
 }

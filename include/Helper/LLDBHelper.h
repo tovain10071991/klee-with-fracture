@@ -14,5 +14,7 @@ bool get_mem(uint64_t address, size_t size, void* buf);
 int get_pid();
 std::string get_func_name_in_plt(uint64_t addr);
 unsigned long get_addr(std::string name);
+std::string get_func_name(unsigned long addr);
+unsigned long get_unload_addr(unsigned long addr);
 
 #endif

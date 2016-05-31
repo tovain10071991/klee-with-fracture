@@ -14,6 +14,7 @@
 #include "lldb/API/SBFrame.h"
 #include "lldb/API/SBValueList.h"
 #include "lldb/API/SBValue.h"
+#include "lldb/API/SBStream.h"
 
 #include <link.h>
 #include <err.h>
@@ -36,6 +37,8 @@ using namespace llvm;
 #define CONVERT(base) (base?base:EXECUTABLE_BASE) 
 
 static SBDebugger debugger;
+static SBTarget target;
+static SBProcess process;
 static object::ObjectFile* main_obj;
 
 class LLDBInited {
@@ -60,12 +63,17 @@ uint64_t get_entry(object::ObjectFile* obj)
 void create_debugger(object::ObjectFile* obj)
 {
   main_obj = obj;
-  SBTarget target = debugger.CreateTarget(obj->getFileName().data());
-  SBBreakpoint breakpoint = target.BreakpointCreateByAddress(get_entry(obj));
-  assert(breakpoint.IsValid());
+  target = debugger.CreateTarget(obj->getFileName().data());
+  SBBreakpoint breakpoint_for_launch = target.BreakpointCreateByAddress(get_entry(obj));  
+  assert(breakpoint_for_launch.IsValid());
   SBLaunchInfo launch_info(NULL);
   SBError error;
-  SBProcess process = target.Launch(launch_info, error);
+  process = target.Launch(launch_info, error);
+  assert(error.Success());
+  
+  SBBreakpoint breakpoint_for_main = target.BreakpointCreateByAddress(get_addr("main"));
+  assert(breakpoint_for_main.IsValid());
+  error = process.Continue();
   assert(error.Success());
 }
 
@@ -87,9 +95,7 @@ unsigned long get_base(string module_name)
     module_name = string(get_current_dir_name())+"/"+module_name;
   if(!module_name.compare(main_obj->getFileName().front()!='/'?string(get_current_dir_name())+"/"+(main_obj->getFileName().str()):main_obj->getFileName().str()))
     return 0;
-  assert(debugger.GetNumTargets()==1);
-  SBTarget target = debugger.GetTargetAtIndex(0);
-  SBProcess process = target.GetProcess();
+
   //从主模块获取链接信息
   struct link_map* lm = new link_map;
   if(lm==NULL)
@@ -115,8 +121,6 @@ unsigned long get_base(string module_name)
 
 unsigned long get_base(unsigned long addr)
 {
-  assert(debugger.GetNumTargets()==1);
-  SBTarget target = debugger.GetTargetAtIndex(0);
   for(unsigned i = 0, num = target.GetNumModules(); i < num; ++i)
   {
     SBModule module = target.GetModuleAtIndex(i);
@@ -138,8 +142,6 @@ unsigned long get_base(unsigned long addr)
 
 object::ObjectFile* get_object(unsigned long addr)
 {
-  assert(debugger.GetNumTargets()==1);
-  SBTarget target = debugger.GetTargetAtIndex(0);
   for(unsigned i = 0, num = target.GetNumModules(); i < num; ++i)
   {
     SBModule module = target.GetModuleAtIndex(i);
@@ -182,9 +184,6 @@ bool get_reg(string reg_name, uint64_t& value)
 {
   if(!reg_name.compare("EFLAGS"))
     return false;
-  assert(debugger.GetNumTargets()==1);
-  SBTarget target = debugger.GetTargetAtIndex(0);
-  SBProcess process = target.GetProcess();
   SBThread thread = process.GetSelectedThread();
   SBFrame frame = thread.GetSelectedFrame();
   SBValueList vals = frame.GetRegisters();
@@ -229,10 +228,6 @@ bool get_reg(string reg_name, uint64_t& value)
 
 bool get_mem(uint64_t address, size_t size, void* buf)
 {
-  assert(debugger.GetNumTargets()==1);
-  SBTarget target = debugger.GetTargetAtIndex(0);
-  SBProcess process = target.GetProcess();
-  
   SBError error;
   process.ReadMemory(address, buf, size, error);
   if(!error.Success())
@@ -242,16 +237,11 @@ bool get_mem(uint64_t address, size_t size, void* buf)
 
 int get_pid()
 {
-  assert(debugger.GetNumTargets()==1);
-  SBTarget target = debugger.GetTargetAtIndex(0);
-  SBProcess process = target.GetProcess();
   return process.GetProcessID();
 }
 
 string get_func_name_in_plt(uint64_t addr)
 {
-  assert(debugger.GetNumTargets()==1);
-  SBTarget target = debugger.GetTargetAtIndex(0);
   for(unsigned i = 0, num = target.GetNumModules(); i < num; ++i)
   {
     SBModule module = target.GetModuleAtIndex(i);
@@ -274,8 +264,6 @@ string get_func_name_in_plt(uint64_t addr)
 
 unsigned long get_addr(string name)
 {
-  assert(debugger.GetNumTargets()==1);
-  SBTarget target = debugger.GetTargetAtIndex(0);
   SBSymbolContextList symbolContextList = target.FindFunctions(name.c_str());
   assert(symbolContextList.IsValid());
   for(uint32_t i = 0; i < symbolContextList.GetSize(); ++i)
@@ -285,7 +273,7 @@ unsigned long get_addr(string name)
     SBSymbol func_sym = symbolContext.GetSymbol();
     if(function.IsValid())
     {
-      cerr << "judge func: " << function.GetName() << " / " << function.GetMangledName() << endl;
+      cerr << "judge func: " << (function.GetName()==NULL?"noname":function.GetName()) << " / " << (function.GetMangledName()==NULL?"noname":function.GetMangledName()) << endl;
       if(!name.compare(function.GetName()) || !name.compare(function.GetMangledName()))
       {
         SBAddress addr = function.GetStartAddress();
@@ -295,7 +283,7 @@ unsigned long get_addr(string name)
     }
     else if(func_sym.IsValid())
     {
-      cerr << "judge sym: " << func_sym.GetName() << " / " << func_sym.GetMangledName() << endl;
+      cerr << "judge sym: " << (func_sym.GetName()==NULL?"noname":func_sym.GetName()) << " / " << (func_sym.GetMangledName()?"noname":func_sym.GetMangledName()) << endl;
       if(!name.compare(func_sym.GetName()) || !name.compare(func_sym.GetMangledName()))
       {
         SBAddress addr = func_sym.GetStartAddress();
@@ -306,4 +294,33 @@ unsigned long get_addr(string name)
     }
   }
   errx(-1, "can't find func: %s", name.c_str());
+}
+
+string get_func_name(unsigned long addr)
+{
+  SBAddress load_addr = target.ResolveLoadAddress(addr);
+  assert(load_addr.IsValid());
+  SBStream description;
+  load_addr.GetDescription(description);
+  cout << description.GetData() << endl;
+  if(!string(".plt").compare(load_addr.GetSection().GetName()))
+    return get_func_name_in_plt(addr);
+  assert(!string(".text").compare(load_addr.GetSection().GetName()));
+  SBSymbol func_sym = load_addr.GetSymbol();
+  assert(func_sym.IsValid());
+  return func_sym.GetName();
+}
+
+unsigned long get_unload_addr(unsigned long addr)
+{
+  SBAddress load_addr = target.ResolveLoadAddress(addr);
+  assert(load_addr.IsValid());
+  string file_from_addr(load_addr.GetModule().GetFileSpec().GetDirectory());
+  file_from_addr = file_from_addr + "/" + load_addr.GetModule().GetFileSpec().GetFilename();
+  string file_from_target(target.GetExecutable().GetDirectory());
+  file_from_target = file_from_target + "/" + target.GetExecutable().GetFilename();
+  if(!file_from_addr.compare(file_from_target))
+    return addr;
+  else
+    return load_addr.GetSection().GetFileOffset() + load_addr.GetOffset();
 }

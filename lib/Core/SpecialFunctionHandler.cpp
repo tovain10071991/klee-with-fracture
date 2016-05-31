@@ -31,8 +31,10 @@
 #include "llvm/ADT/Twine.h"
 
 #include <errno.h>
+#include <string>
 
 #include "Helper/DecompileHelper.h"
+#include "Helper/LLDBHelper.h"
 
 using namespace llvm;
 using namespace klee;
@@ -790,7 +792,8 @@ void SpecialFunctionHandler::handleSaibCollectIndirect(ExecutionState &state,
   assert(target_val);
   uint64_t addr = target_val->getZExtValue();
   indirect_call_set[inst->getDebugLoc().getLine()].insert(addr);
-  Function* func = getFunction(addr);
+  std::string func_name = get_func_name(addr);
+  Function* func = executor.kmodule->get_func(func_name);
   assert(func);
   func->dump();
   assert(!func->empty());  
