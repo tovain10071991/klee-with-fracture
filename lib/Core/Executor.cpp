@@ -1160,7 +1160,11 @@ void Executor::executeCall(ExecutionState &state,
                            std::vector< ref<Expr> > &arguments) {
   Instruction *i = ki->inst;
   if (f && f->isDeclaration() && f->getIntrinsicID()==Intrinsic::not_intrinsic)
-    f = kmodule->get_func(f->getName().str());
+  {
+    Function* func = kmodule->get_func(f->getName().str());
+    if(func)
+      f = func;
+  }
   if (f && f->isDeclaration()) {
     switch(f->getIntrinsicID()) {
     case Intrinsic::not_intrinsic:

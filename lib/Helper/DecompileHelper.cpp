@@ -133,5 +133,7 @@ Module* get_module_with_function(unsigned long addr)
 Module* get_module_with_function(string func_name)
 {
   unsigned long addr = get_addr(func_name);
+  if(!addr)
+    return NULL;
   return get_module_with_function(addr);
 }

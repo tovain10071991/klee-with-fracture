@@ -59,6 +59,7 @@
 #include <sstream>
 
 #include <Helper/DecompileHelper.h>
+#include <Helper/LLDBHelper.h>
 
 using namespace llvm;
 using namespace klee;
@@ -627,11 +628,16 @@ Function* KModule::get_func(std::string name)
     return func;
   }
   Module* mdl = get_module_with_function(name);
+  if(!mdl)
+    return NULL;
+  
   modules.insert(mdl);
   
   infos->addModuleInfo(mdl);
   
   func = mdl->getFunction(name);
+  if(!func)
+    func = mdl->getFunction(get_mangled_name(name));
   assert(!func->isDeclaration());
   
   KFunction *kf = new KFunction(func, this);

@@ -137,7 +137,7 @@ unsigned long get_base(unsigned long addr)
     }
     delete obj;
   }
-  errx(-1, "can't find module in get_base(addr)");
+  errx(-1, "can't find module in get_base(addr): %lx", addr);
 }
 
 object::ObjectFile* get_object(unsigned long addr)
@@ -293,7 +293,8 @@ unsigned long get_addr(string name)
       }
     }
   }
-  errx(-1, "can't find func: %s", name.c_str());
+  warnx("can't find func: %s", name.c_str());
+  return 0;
 }
 
 string get_func_name(unsigned long addr)
@@ -323,4 +324,34 @@ unsigned long get_unload_addr(unsigned long addr)
     return addr;
   else
     return load_addr.GetSection().GetFileOffset() + load_addr.GetOffset();
+}
+
+string get_mangled_name(string name)
+{
+  SBSymbolContextList symbolContextList = target.FindFunctions(name.c_str());
+  assert(symbolContextList.IsValid());
+  for(uint32_t i = 0; i < symbolContextList.GetSize(); ++i)
+  {
+    SBSymbolContext symbolContext = symbolContextList.GetContextAtIndex(i);
+    SBFunction function = symbolContext.GetFunction();
+    SBSymbol func_sym = symbolContext.GetSymbol();
+    if(function.IsValid())
+    {
+      cerr << "judge func: " << (function.GetName()==NULL?"noname":function.GetName()) << " / " << (function.GetMangledName()==NULL?"noname":function.GetMangledName()) << endl;
+      if(!name.compare(function.GetName()) || !name.compare(function.GetMangledName()))
+        return function.GetMangledName();
+    }
+    else if(func_sym.IsValid())
+    {
+      cerr << "judge sym: " << (func_sym.GetName()==NULL?"noname":func_sym.GetName()) << " / " << (func_sym.GetMangledName()?"noname":func_sym.GetMangledName()) << endl;
+      if(!name.compare(func_sym.GetName()) || !name.compare(func_sym.GetMangledName()))
+      {
+        SBAddress addr = func_sym.GetStartAddress();
+        assert(addr.IsValid());
+        if(!string(".text").compare(addr.GetSection().GetName()))
+          return func_sym.GetMangledName();
+      }
+    }
+  }
+  errx(-1, "can't find func: %s", name.c_str());
 }
