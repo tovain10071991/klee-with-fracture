@@ -584,12 +584,19 @@ void Executor::initializeGlobals(ExecutionState &state) {
       const ObjectState *os = state.addressSpace.findObject(mo);
       assert(os);
       ObjectState *wos = state.addressSpace.getWriteable(mo, os);
-      uint64_t value;
-      if(get_reg(i->getName(), value))
-        initializeGlobalObject(state, wos, ConstantInt::get(dyn_cast<PointerType>(i->getType())->getElementType(), value), 0);
+      void* buf = calloc(1, 64);
+      unsigned size = 0;
+      if(get_reg(i->getName(), buf, 64, size))
+      {
+        assert(size<=64);
+        IntegerType* value_type = dyn_cast<IntegerType>(dyn_cast<PointerType>(i->getType())->getElementType());
+        assert(value_type->getBitWidth()<=size*8);
+        APInt value(value_type->getBitWidth(), ArrayRef<uint64_t>((uint64_t*)buf, (value_type->getBitWidth()+63)/64));
+        initializeGlobalObject(state, wos, ConstantInt::get(value_type, value), 0);
+      }
       else
         initializeGlobalObject(state, wos, i->getInitializer(), 0);
-      // if(i->isConstant()) os->setReadOnly(true);
+      free(buf);
     }
   }
   

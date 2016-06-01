@@ -179,6 +179,25 @@ SBValue get_child(SBValue val, string reg_name)
   return child;
 }
 
+bool get_reg(string reg_name, SBData& data)
+{
+  SBThread thread = process.GetSelectedThread();
+  SBFrame frame = thread.GetSelectedFrame();
+  SBValueList vals = frame.GetRegisters();
+
+  for(uint32_t i = 0; i < vals.GetSize(); ++i)
+  {
+    SBValue regs = vals.GetValueAtIndex(i);
+    SBValue child = get_child(regs, reg_name);
+    if(!child.IsValid())
+      continue;
+    data = child.GetData();
+    return true;
+  }
+  warnx("can.t find reg: %s", reg_name.c_str());
+  return false;
+}
+
 bool get_reg(string reg_name, uint64_t& value)
 {
   if(!reg_name.compare("EFLAGS"))
@@ -223,6 +242,69 @@ bool get_reg(string reg_name, uint64_t& value)
   }
   warnx("can.t find reg: %s", reg_name.c_str());
   return false;
+}
+
+bool get_reg(string reg_name, void* buf, unsigned buf_size, unsigned& val_size)
+{
+  SBData data;
+  if(get_reg(reg_name, data))
+  {
+    val_size = data.GetByteSize();
+    assert(val_size<=buf_size);
+    SBError error;
+    assert(data.ReadRawData(error, 0, buf, data.GetByteSize())==data.GetByteSize());
+    return true;
+  }
+  else if(!reg_name.compare("OF") || !reg_name.compare("SF") || !reg_name.compare("ZF") || !reg_name.compare("AF") || !reg_name.compare("PF") || !reg_name.compare("CF") || !reg_name.compare("TF") || !reg_name.compare("IF") || !reg_name.compare("DF") || !reg_name.compare("RF") || !reg_name.compare("NT"))
+  {
+    uint64_t flags;
+    assert(get_reg("rflags", flags));
+    map<string, unsigned> flag_off_map = {
+      {"CF", 0},
+      {"PF", 2},
+      {"AF", 4},
+      {"ZF", 6},
+      {"SF", 7},
+      {"TF", 8},
+      {"IF", 9},
+      {"DF", 10},
+      {"OF", 11},
+      {"NT", 14},
+      {"RF", 16}};
+    *(uint64_t*)buf = (flags>>flag_off_map[reg_name])&1;
+    val_size = 1;
+    return true;
+  }
+  else if(!reg_name.compare("ZMM0") || !reg_name.compare("ZMM1") || !reg_name.compare("ZMM2") || !reg_name.compare("ZMM3") || !reg_name.compare("ZMM4") || !reg_name.compare("ZMM5") || !reg_name.compare("ZMM6") || !reg_name.compare("ZMM7") || !reg_name.compare("ZMM8") || !reg_name.compare("ZMM9") || !reg_name.compare("ZMM10") || !reg_name.compare("ZMM11") || !reg_name.compare("ZMM12") || !reg_name.compare("ZMM13") || !reg_name.compare("ZMM14") || !reg_name.compare("ZMM15"))
+  {
+    map<string, string> zmm_ymm_map = {
+      {"ZMM0", "ymm0"},
+      {"ZMM1", "ymm1"},
+      {"ZMM2", "ymm2"},
+      {"ZMM3", "ymm3"},
+      {"ZMM4", "ymm4"},
+      {"ZMM5", "ymm5"},
+      {"ZMM6", "ymm6"},
+      {"ZMM7", "ymm7"},
+      {"ZMM8", "ymm8"},
+      {"ZMM9", "ymm9"},
+      {"ZMM10", "ymm10"},
+      {"ZMM11", "ymm11"},
+      {"ZMM12", "ymm12"},
+      {"ZMM13", "ymm13"},
+      {"ZMM14", "ymm14"},
+      {"ZMM15", "ymm15"}};
+    unsigned ymm_size = 0;
+    assert(get_reg(zmm_ymm_map[reg_name], buf, 32, ymm_size));
+    assert(ymm_size = 32);
+    val_size = 64;
+    return true;
+  }
+  else
+  {
+    warnx("can.t find reg: %s", reg_name.c_str());
+    return false;
+  }
 }
 
 bool get_mem(uint64_t address, size_t size, void* buf)
