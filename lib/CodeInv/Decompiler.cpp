@@ -392,7 +392,7 @@ Function* Decompiler::getFunctionByAddr(uint64_t addr)
   for(auto iter = Mod->begin(); iter != Mod->end(); ++iter)
   {
     StringRef AddrStr = iter->getFnAttribute("Address").getValueAsString();
-    uint64_t Addr;
+    uint64_t Addr = 0;
     AddrStr.getAsInteger(10, Addr);
     if(Addr==addr)
       return iter;

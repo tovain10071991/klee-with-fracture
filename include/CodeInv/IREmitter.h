@@ -79,6 +79,7 @@ protected:
 
   declare_visit(PUSH64r);
   declare_visit(POP64r);
+  declare_visit(LEAVE64);
 
   declare_visit(ADD64r);
   declare_visit(ADD32ri8);
@@ -115,7 +116,6 @@ protected:
   declare_visit(CALL64r);
   declare_visit(CALL64m);
   declare_visit(RET);
-  declare_visit(LEAVE64);
 
   declare_visit(NOOP);
 

@@ -20,6 +20,8 @@
 
 #include <err.h>
 
+#include "Helper/LLDBHelper.h"
+
 using namespace llvm;
 
 namespace fracture {
@@ -146,7 +148,7 @@ MachineBasicBlock* Disassembler::decodeBasicBlock(unsigned Address,
 //  uint64_t MFLoc = MF->getFunctionNumber(); // FIXME: Horrible, horrible hack
 //  uint64_t Off = Address-MFLoc;
   std::stringstream MBBName;
-  MBBName << "bb_" << Address;
+  MBBName << "bb_" << CurSectionLoadBase - CurSectionUnloadBase + Address;
 
   // Dummy holds the name.
   BasicBlock *Dummy = BasicBlock::Create(*MC->getContext(), MBBName.str());
@@ -228,7 +230,7 @@ unsigned Disassembler::decodeInstruction(unsigned Address,
 
 
   // Recover MachineInstr representation
-  DebugLoc *Location = setDebugLoc(Address);
+  DebugLoc *Location = setDebugLoc(CurSectionLoadBase - CurSectionUnloadBase +Address);
   MachineInstrBuilder MIB = BuildMI(Block, *Location, *MCID);
   unsigned int numDefs = MCID->getNumDefs();
   for (unsigned int i = 0; i < Inst->getNumOperands(); i++) {
@@ -721,6 +723,8 @@ void Disassembler::setSection(const object::SectionRef Section) {
   StringRef SectionName;
   CurSection.getName(SectionName);
   //printInfo("Setting Section " + std::string(SectionName.data()));
+  CurSectionUnloadBase = SectAddr;
+  CurSectionLoadBase = get_section_load_addr(Executable->getFileName().str(), SectionName.str());
 }
 
 std::string Disassembler::rawBytesToString(StringRef Bytes) {

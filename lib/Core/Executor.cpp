@@ -3026,8 +3026,8 @@ void Executor::callExternalFunction(ExecutionState &state,
   }
   
   bool success;
-  if (NoExternals && okExternals.count(function->getName()))
-    success = externalDispatcher->executeCall(function, target->inst, args);
+  assert(NoExternals && okExternals.count(function->getName()));
+  success = externalDispatcher->executeCall(function, target->inst, args);
 /*  if (!success) {
     terminateStateOnError(state, "failed external call: " + function->getName(),
                           "external.err");
@@ -3073,9 +3073,9 @@ void Executor::callExternalFunction(ExecutionState &state,
     e->dump();
     llvm::errs() << "\n";
 
-  if (!success) {
-    e->from_extern = true;
-  }
+    if (!success) {
+      e->from_extern = true;
+    }
 
   }
 }

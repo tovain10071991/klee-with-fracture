@@ -62,6 +62,7 @@ void IREmitter::initDispacher()
   
   visitDispachers[X86::PUSH64r] = &IREmitter::visitPUSH64r;
   visitDispachers[X86::POP64r] = &IREmitter::visitPOP64r;
+  visitDispachers[X86::LEAVE64] = &IREmitter::visitLEAVE64;
   
   visitDispachers[X86::ADD64rr] = &IREmitter::visitADD64r;
   visitDispachers[X86::ADD32ri8] = &IREmitter::visitADD32ri8;
@@ -99,7 +100,6 @@ void IREmitter::initDispacher()
   visitDispachers[X86::CALL64r] = &IREmitter::visitCALL64r;
   visitDispachers[X86::CALL64m] = &IREmitter::visitCALL64m;
   visitDispachers[X86::RET] = &IREmitter::visitRET;
-  visitDispachers[X86::LEAVE64] = &IREmitter::visitLEAVE64;
   
   visitDispachers[X86::NOOP] = &IREmitter::visitNOOP;
   visitDispachers[X86::NOOPL] = &IREmitter::visitNOOP;

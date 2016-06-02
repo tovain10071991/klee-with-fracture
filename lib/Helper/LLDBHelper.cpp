@@ -436,3 +436,16 @@ string get_mangled_name(string name)
   }
   errx(-1, "can't find func: %s", name.c_str());
 }
+
+unsigned long get_section_load_addr(string obj_name, string sec_name)
+{
+  SBFileSpec obj_file(obj_name.c_str());
+  // SBFileSpec exec_file = target.GetExecutable();
+  // if(!string(exec_file.GetDirectory()).compare(obj_file.GetDirectory()) && !string(exec_file.GetFilename()).compare(obj_file.GetFilename()))
+    // return 0;
+  SBModule obj_mdl = target.FindModule(obj_file);
+  assert(obj_mdl.IsValid());
+  SBSection section = obj_mdl.FindSection(sec_name.c_str());
+  assert(section.IsValid());
+  return section.GetLoadAddress(target);
+}

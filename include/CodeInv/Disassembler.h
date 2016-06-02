@@ -193,6 +193,8 @@ public:
   void deleteFunction(MachineFunction* MF);
 private:
   object::SectionRef CurSection;
+  unsigned long CurSectionLoadBase;
+  unsigned long CurSectionUnloadBase;
   object::ObjectFile *Executable;
   FractureMemoryObject* CurSectionMemory;
   uint64_t CurSectionEnd;

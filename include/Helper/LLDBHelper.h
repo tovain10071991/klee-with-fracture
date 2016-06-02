@@ -18,5 +18,6 @@ unsigned long get_addr(std::string name);
 std::string get_func_name(unsigned long addr);
 unsigned long get_unload_addr(unsigned long addr);
 std::string get_mangled_name(std::string name);
+unsigned long get_section_load_addr(std::string obj_name, std::string sec_name);
 
 #endif
