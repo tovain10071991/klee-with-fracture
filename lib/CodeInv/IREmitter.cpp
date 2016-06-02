@@ -167,23 +167,6 @@ StringRef IREmitter::getInstructionName(MachineInstr *I) {
   return StringRef();
 }
 
-void IREmitter::visit(BasicBlock *BB, MachineInstr* CurInst) {
-  CurInst->dump();
-  for(unsigned i = 0; i < CurInst->getNumOperands(); ++i)
-  {
-    errs() << "\n\t" << i << ": ";
-    CurInst->getOperand(i).print(errs());
-  }
-  errs() << "\n";
-
-  IRB->SetCurrentDebugLocation(CurInst->getDebugLoc());
-  assert(visitDispachers.find(CurInst->getOpcode()) != visitDispachers.end() && "unknown opcode when decompileBasicBlock");
-  void(IREmitter::*dispatcher)(BasicBlock *, MachineInstr*) = visitDispachers[CurInst->getOpcode()];
-  (this->*dispatcher)(BB, CurInst);
-
-  BB->dump();
-}
-
 unsigned IREmitter::get_super_reg(unsigned reg)
 {
   const MCRegisterInfo* MRI = Dec->getDisassembler()->getMCDirector()->getMCRegisterInfo();
@@ -355,6 +338,29 @@ define_get_flag_val(ZF)
 define_get_flag_val(SF)
 define_get_flag_val(CF)
 define_get_flag_val(OF)
+
+void IREmitter::visit(BasicBlock *BB, MachineInstr* CurInst) {
+  CurInst->dump();
+  for(unsigned i = 0; i < CurInst->getNumOperands(); ++i)
+  {
+    errs() << "\n\t" << i << ": ";
+    CurInst->getOperand(i).print(errs());
+  }
+  errs() << "\n";
+
+  IRB->SetCurrentDebugLocation(CurInst->getDebugLoc());
+  
+  IRB->SetInsertPoint(BB);
+  LLVMContext* context = Dec->getContext();
+  ConstantInt* next_rip = ConstantInt::get(Type::getInt64Ty(*context), Dec->getDisassembler()->getDebugOffset(CurInst->getDebugLoc()) + CurInst->getDesc().getSize());
+  store_reg_val(X86::RIP, next_rip);
+  
+  assert(visitDispachers.find(CurInst->getOpcode()) != visitDispachers.end() && "unknown opcode when decompileBasicBlock");
+  void(IREmitter::*dispatcher)(BasicBlock *, MachineInstr*) = visitDispachers[CurInst->getOpcode()];
+  (this->*dispatcher)(BB, CurInst);
+
+  BB->dump();
+}
 
 #define define_visit(name) \
 void IREmitter::visit##name(BasicBlock *BB, MachineInstr* I)

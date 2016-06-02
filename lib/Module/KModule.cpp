@@ -20,6 +20,7 @@
 #include "klee/Internal/Module/InstructionInfoTable.h"
 #include "klee/Internal/Support/Debug.h"
 #include "klee/Internal/Support/ModuleUtil.h"
+#include "../lib/Core/Executor.h"
 
 #include "llvm/Bitcode/ReaderWriter.h"
 #if LLVM_VERSION_CODE >= LLVM_VERSION(3, 3)
@@ -104,9 +105,10 @@ namespace {
                               cl::desc("Print functions whose address is taken."));
 }
 
-KModule::KModule(Module *_module) 
+KModule::KModule(Module *_module, Executor* _executor) 
   : mainModule(_module),
     modules({mainModule}),
+    executor(_executor),
 #if LLVM_VERSION_CODE <= LLVM_VERSION(3, 1)
     targetData(new TargetData(mainModule)),
 #else
@@ -118,7 +120,7 @@ KModule::KModule(Module *_module)
 }
 
 KModule::~KModule() {
-  delete[] constantTable;
+  // delete[] constantTable;
   delete infos;
 
   for (std::vector<KFunction*>::iterator it = functions.begin(), 
@@ -492,6 +494,12 @@ unsigned KModule::getConstantID(Constant *c, KInstruction* ki) {
   kc = new KConstant(c, id, ki);
   constantMap.insert(std::make_pair(c, kc));
   constants.push_back(c);
+  if(after_run)
+  {
+    Cell cell;
+    cell.value = executor->evalConstant(c);
+    constantTable.push_back(cell);
+  }
   return id;
 }
 
@@ -600,6 +608,9 @@ KFunction::KFunction(llvm::Function *_function,
       instructions[i++] = ki;
     }
   }
+  if(after_run)
+    for (unsigned i=0; i<numInstructions; ++i)
+      km->executor->bindInstructionConstants(instructions[i]);
 }
 
 KFunction::~KFunction() {

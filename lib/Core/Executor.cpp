@@ -111,6 +111,7 @@ using namespace klee;
 
 namespace klee {
   std::map<Instruction*, std::set<Function*> > indirect_call_set;
+  bool after_run = false;
 }
 
 
@@ -321,7 +322,7 @@ const Module *Executor::setModule(llvm::Module *module,
                                   const ModuleOptions &opts) {
   assert(!kmodule && module && "can only register one module"); // XXX gross
   
-  kmodule = new KModule(module);
+  kmodule = new KModule(module, this);
 
   // Initialize the context.
 #if LLVM_VERSION_CODE <= LLVM_VERSION(3, 1)
@@ -600,15 +601,16 @@ void Executor::initializeGlobals(ExecutionState &state) {
     }
   }
   
-  GlobalVariable* rsp = m->getGlobalVariable("RSP");
-  uint64_t stack_addr, stack_endaddr;
-  get_stack_range(&stack_addr, &stack_endaddr);
-  uint64_t stack_size = stack_endaddr - stack_addr;
-  errs() << "stack: " << stack_addr << " ~ " << stack_endaddr << "\n";
-  MemoryObject *mo = memory->allocateFixed(stack_addr, stack_size, rsp);
-  mo->setName("stack");
-  mo->lazy_populate.reset();
-  bindObjectInState(state, mo, false);
+  // alloca data sections
+  std::vector<map_t> data_segments = get_data_segments();
+  for(auto iter = data_segments.begin(); iter != data_segments.end(); ++iter)
+  {
+    errs() << iter->filename << ": " << iter->addr << " ~ " << iter->endaddr << "\n";
+    MemoryObject *mo = memory->allocateFixed(iter->addr, iter->endaddr-iter->addr, NULL);
+    mo->setName(iter->filename);
+    mo->lazy_populate.reset();
+    bindObjectInState(state, mo, false);
+  }
 }
 
 void Executor::branch(ExecutionState &state, 
@@ -2628,7 +2630,7 @@ void Executor::bindModuleConstants() {
       bindInstructionConstants(kf->instructions[i]);
   }
 
-  kmodule->constantTable = new Cell[kmodule->constants.size()];
+  kmodule->constantTable.resize(kmodule->constants.size());
   for (unsigned i=0; i<kmodule->constants.size(); ++i) {
     Cell &c = kmodule->constantTable[i];
     c.value = evalConstant(kmodule->constants[i]);
@@ -2670,7 +2672,7 @@ void Executor::checkMemoryUsage() {
 
 void Executor::run(ExecutionState &initialState) {
   bindModuleConstants();
-
+  after_run = true;
   // Delay init till now so that ticks don't accrue during
   // optimization and such.
   initTimers();

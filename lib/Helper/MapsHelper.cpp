@@ -1,11 +1,15 @@
 #include "Helper/MapsHelper.h"
 #include "Helper/LLDBHelper.h"
 
+#include <vector>
+
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+
+using namespace std;
 
 #define HIGH_BYTE_POSN ((sizeof (uint64_t) - 1) * 8)
 
@@ -170,4 +174,28 @@ void get_stack_range(uint64_t* stack_addr, uint64_t* stack_endaddr)
     }
   }
   assert(0 && "unreachable");
+}
+
+vector<map_t> get_data_segments()
+{
+  vector<map_t> data_segments;
+  char filename[100];
+  char mappings[12000];
+  char* line;
+  sprintf(filename, "/proc/%d/maps", get_pid());
+  
+  FILE* fd = fopen(filename, "r");
+  assert(fd);
+  size_t nitems = fread(mappings, 150, 80, fd);
+  assert(nitems<80);
+  for(line = strtok(mappings, "\n"); line; line = strtok(NULL, "\n"))
+  {
+    uint64_t addr, endaddr, offset, inode;
+    const char *permissions, *device, *filename;
+    size_t permissions_len, device_len;
+    
+    read_mapping(line, &addr, &endaddr, &permissions, &permissions_len, &offset, &device, &device_len, &inode, &filename);
+    data_segments.push_back({addr, endaddr, permissions, permissions_len, offset, device, device_len, inode, filename});
+  }
+  return data_segments;
 }

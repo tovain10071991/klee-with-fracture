@@ -377,11 +377,11 @@ private:
 
   template <typename TypeIt>
   void computeOffsets(KGEPInstruction *kgepi, TypeIt ib, TypeIt ie);
-
+public:
   /// bindInstructionConstants - Initialize any necessary per instruction
   /// constant values.
   void bindInstructionConstants(KInstruction *KI);
-
+private:
   void handlePointsToObj(ExecutionState &state, 
                          KInstruction *target, 
                          const std::vector<ref<Expr> > &arguments);
@@ -474,7 +474,7 @@ public:
 
   Expr::Width getWidthForLLVMType(LLVM_TYPE_Q llvm::Type *type) const;
 };
-  
+extern bool after_run;
 } // End klee namespace
 
 #endif

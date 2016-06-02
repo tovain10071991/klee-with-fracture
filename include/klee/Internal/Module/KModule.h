@@ -86,6 +86,7 @@ namespace klee {
   public:
     llvm::Module* mainModule;
     std::set<llvm::Module*> modules;
+    Executor* executor;
 #if LLVM_VERSION_CODE <= LLVM_VERSION(3, 1)
     llvm::TargetData *targetData;
 #else
@@ -109,7 +110,7 @@ namespace klee {
     std::map<llvm::Constant*, KConstant*> constantMap;
     KConstant* getKConstant(llvm::Constant *c);
 
-    Cell *constantTable;
+    std::vector<Cell> constantTable;
 
     // Functions which are part of KLEE runtime
     std::set<const llvm::Function*> internalFunctions;
@@ -119,7 +120,7 @@ namespace klee {
     void addInternalFunction(const char* functionName);
 
   public:
-    KModule(llvm::Module *_module);
+    KModule(llvm::Module *_module, Executor* _executor);
     ~KModule();
 
     /// Initialize local data structures.
