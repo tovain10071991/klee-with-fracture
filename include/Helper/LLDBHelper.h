@@ -18,6 +18,7 @@ std::string get_func_name_in_plt(uint64_t addr);
 unsigned long get_addr(std::string name);
 std::string get_func_name(unsigned long addr);
 unsigned long get_unload_addr(unsigned long addr);
+unsigned long get_load_addr(unsigned long addr, std::string obj_name, std::string sec_name);
 std::string get_mangled_name(std::string name);
 unsigned long get_section_load_addr(std::string obj_name, std::string sec_name);
 unsigned get_sym_unload_endaddr(unsigned unload_addr, std::string obj_name, std::string sec_name);

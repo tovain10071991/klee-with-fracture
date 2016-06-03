@@ -13,6 +13,8 @@
 #include "klee/Config/Version.h"
 #include "klee/Interpreter.h"
 
+#include <llvm/IR/GlobalValue.h>
+
 #include <map>
 #include <set>
 #include <vector>

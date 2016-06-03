@@ -688,6 +688,12 @@ const StringRef Disassembler::getFunctionName(unsigned Address) const {
   // }
 
   if (NameRef.empty()) {
+    StringRef SectionName;
+    CurSection.getName(SectionName);
+    return get_func_name(get_load_addr(Address, Executable->getFileName(), SectionName.str()));
+  }
+
+  if (NameRef.empty()) {
     std::string *FName = new std::string();
     raw_string_ostream FOut(*FName);
     FOut << "func_" << format("%1" PRIx64, Address);

@@ -531,9 +531,36 @@ static int getOperandNum(Value *v,
     {
       if(gv->isDeclaration())
       {
-        GlobalVariable* defined_gv = km->mainModule->getGlobalVariable(gv->getName());
-        assert(defined_gv && !defined_gv->isDeclaration());
-        c = defined_gv;
+        gv = km->mainModule->getGlobalVariable(gv->getName());
+        assert(gv && !gv->isDeclaration());
+        c = gv;
+      }
+    }
+    else if(Function* func = dyn_cast<Function>(c))
+    {
+      if(func->isDeclaration())
+      {
+        auto mdl_iter = km->modules.begin();
+        for(; mdl_iter != km->modules.end(); ++mdl_iter)
+        {
+          func = (*mdl_iter)->getFunction(func->getName());
+          if(!func)
+            continue;
+          if(func->isDeclaration())
+            continue;
+          break;
+        }
+        if(func && !func->isDeclaration())
+        {
+          for(; mdl_iter != km->modules.end(); ++mdl_iter)
+            assert(!(*mdl_iter)->getFunction(func->getName()) || (*mdl_iter)->getFunction(func->getName())->isDeclaration());
+          c = func;
+        }
+        else
+        {
+          c = km->mainModule->getFunction(func->getName());
+          assert(c);
+        }
       }
     }
     return -(km->getConstantID(c, ki) + 2);
