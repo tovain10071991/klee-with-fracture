@@ -77,6 +77,13 @@ void create_debugger(object::ObjectFile* obj)
   assert(error.Success());
 }
 
+void create_debugger(string binary)
+{
+  main_obj = object::ObjectFile::createObjectFile(binary);
+  assert(main_obj->isObject() && main_obj->isELF() && "it is not object");
+  create_debugger(main_obj);
+}
+
 string get_absolute(string name)
 {
   if(name[0] == '/')
@@ -321,28 +328,6 @@ int get_pid()
   return process.GetProcessID();
 }
 
-string get_func_name_in_plt(uint64_t addr)
-{
-  for(unsigned i = 0, num = target.GetNumModules(); i < num; ++i)
-  {
-    SBModule module = target.GetModuleAtIndex(i);
-    SBFileSpec file_spec = module.GetFileSpec();
-    if(get_absolute(file_spec).compare(get_absolute(main_obj->getFileName().str())))
-      continue;
-    SBSection section = module.FindSection(".plt");
-    assert(section.IsValid());
-    addr_t plt_addr = section.GetFileAddress();
-    addr_t plt_size = section.GetByteSize();
-    assert(addr>=plt_addr && addr<plt_addr+plt_size);
-    SBAddress func_addr = module.ResolveFileAddress(addr);
-    SBSymbol func_sym = func_addr.GetSymbol();
-    assert(func_sym.GetStartAddress().GetOffset() == func_addr.GetOffset());
-    cerr << "found plt func: " << func_sym.GetName() << endl;
-    return string(func_sym.GetName());
-  }
-  errx(-1, "can't find in get_func_name_in_plt");
-}
-
 unsigned long get_addr(string name)
 {
   SBSymbolContextList symbolContextList = target.FindFunctions(name.c_str());
@@ -365,6 +350,9 @@ unsigned long get_addr(string name)
     else if(func_sym.IsValid())
     {
       cerr << "judge sym: " << (func_sym.GetName()==NULL?"noname":func_sym.GetName()) << " / " << (func_sym.GetMangledName()==NULL?"noname":func_sym.GetMangledName()) << endl;
+      SBStream description;
+      func_sym.GetDescription(description);
+      cout << description.GetData() << endl;
       if(!name.compare(func_sym.GetName()) || !name.compare(func_sym.GetMangledName()))
       {
         SBAddress addr = func_sym.GetStartAddress();
@@ -376,21 +364,6 @@ unsigned long get_addr(string name)
   }
   warnx("can't find func: %s", name.c_str());
   return 0;
-}
-
-string get_func_name(unsigned long addr)
-{
-  SBAddress load_addr = target.ResolveLoadAddress(addr);
-  assert(load_addr.IsValid());
-  SBStream description;
-  load_addr.GetDescription(description);
-  cout << description.GetData() << endl;
-  if(!string(".plt").compare(load_addr.GetSection().GetName()))
-    return get_func_name_in_plt(addr);
-  assert(!string(".text").compare(load_addr.GetSection().GetName()));
-  SBSymbol func_sym = load_addr.GetSymbol();
-  assert(func_sym.IsValid());
-  return func_sym.GetName();
 }
 
 unsigned long get_unload_addr(unsigned long addr)
@@ -430,22 +403,96 @@ string get_mangled_name(string name)
         SBAddress addr = func_sym.GetStartAddress();
         assert(addr.IsValid());
         if(!string(".text").compare(addr.GetSection().GetName()))
-          return func_sym.GetMangledName();
+          return func_sym.GetMangledName()?func_sym.GetMangledName():func_sym.GetName();
       }
     }
   }
   errx(-1, "can't find func: %s", name.c_str());
 }
 
-unsigned long get_section_load_addr(string obj_name, string sec_name)
+SBSection get_section(string obj_name, string sec_name)
 {
-  SBFileSpec obj_file(obj_name.c_str());
+  SBFileSpec obj_file(obj_name.c_str(), false);
+  SBFileSpec obj_file_with_resolved(obj_name.c_str(), true);
   // SBFileSpec exec_file = target.GetExecutable();
   // if(!string(exec_file.GetDirectory()).compare(obj_file.GetDirectory()) && !string(exec_file.GetFilename()).compare(obj_file.GetFilename()))
     // return 0;
   SBModule obj_mdl = target.FindModule(obj_file);
-  assert(obj_mdl.IsValid());
+  if(!obj_mdl.IsValid())
+  {
+    obj_mdl = target.FindModule(obj_file_with_resolved);
+    assert(obj_mdl.IsValid());
+  }
   SBSection section = obj_mdl.FindSection(sec_name.c_str());
   assert(section.IsValid());
+  return section;
+}
+
+unsigned long get_section_load_addr(string obj_name, string sec_name)
+{
+  SBSection section = get_section(obj_name, sec_name);
   return section.GetLoadAddress(target);
+}
+
+unsigned long get_load_addr(unsigned long addr, string obj_name, string sec_name)
+{
+  SBSection section = get_section(obj_name, sec_name);
+  unsigned long sec_load_base = section.GetLoadAddress(target);
+  unsigned long sec_unload_base = section.GetFileAddress();
+  return sec_load_base - sec_unload_base + addr;
+}
+
+SBSymbol get_func_sym_in_plt(uint64_t addr)
+{
+  for(unsigned i = 0, num = target.GetNumModules(); i < num; ++i)
+  {
+    SBModule module = target.GetModuleAtIndex(i);
+    SBFileSpec file_spec = module.GetFileSpec();
+    if(get_absolute(file_spec).compare(get_absolute(main_obj->getFileName().str())))
+      continue;
+    SBSection section = module.FindSection(".plt");
+    assert(section.IsValid());
+    addr_t plt_addr = section.GetFileAddress();
+    addr_t plt_size = section.GetByteSize();
+    assert(addr>=plt_addr && addr<plt_addr+plt_size);
+    SBAddress func_addr = module.ResolveFileAddress(addr);
+    SBSymbol func_sym = func_addr.GetSymbol();
+    assert(func_sym.GetStartAddress().GetOffset() == func_addr.GetOffset());
+    cerr << "found plt func: " << func_sym.GetName() << endl;
+    return func_sym;
+  }
+  errx(-1, "can't find in get_func_name_in_plt");
+}
+
+SBSymbol get_func_sym(unsigned long addr)
+{
+  SBAddress load_addr = target.ResolveLoadAddress(addr);
+  assert(load_addr.IsValid());
+  SBStream description;
+  load_addr.GetDescription(description);
+  cout << description.GetData() << endl;
+  if(!string(".plt").compare(load_addr.GetSection().GetName()))
+    return get_func_sym_in_plt(addr);
+  assert(!string(".text").compare(load_addr.GetSection().GetName()));
+  SBSymbol func_sym = load_addr.GetSymbol();
+  assert(func_sym.IsValid());
+  return func_sym;
+}
+
+string get_func_name_in_plt(uint64_t addr)
+{
+  SBSymbol func_sym = get_func_sym_in_plt(addr);
+  return func_sym.GetName();
+}
+
+string get_func_name(unsigned long addr)
+{
+  SBSymbol func_sym = get_func_sym(addr);
+  return func_sym.GetName();
+}
+
+unsigned get_sym_unload_endaddr(unsigned unload_addr, string obj_name, string sec_name)
+{
+  SBSymbol func_sym = get_func_sym(get_load_addr(unload_addr, obj_name, sec_name));
+  return get_unload_addr(func_sym.GetEndAddress().GetLoadAddress(target));
 }

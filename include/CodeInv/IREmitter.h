@@ -94,10 +94,14 @@ protected:
   declare_visit(SHR64ri);
 
   declare_visit(AND64ri8);
+  declare_visit(OR64ri8);
   declare_visit(XOR32r);
+
+  declare_visit(NEG32r);
 
   declare_visit(CMP32ri8);
   declare_visit(CMP64ri8);
+  declare_visit(CMP64i32);
   declare_visit(CMP64r);
   declare_visit(CMP32mi8);
   declare_visit(CMP64mi8);
@@ -109,6 +113,7 @@ protected:
   declare_visit(JMP64r);
   declare_visit(JMP);
   declare_visit(JA_1);
+  declare_visit(JAE_1);
   declare_visit(JE_1);
   declare_visit(JNE_1);
 
@@ -118,7 +123,9 @@ protected:
   declare_visit(RET);
 
   declare_visit(NOOP);
-
+  
+  declare_visit(SYSCALL);
+  
   /// Error printing
   raw_ostream &Infos, &Errs;
   void printInfo(std::string Msg) const {
@@ -133,9 +140,9 @@ protected:
   unsigned get_super_reg(unsigned reg);
   Value* get_reg_val(unsigned reg);
   void store_reg_val(unsigned reg, Value* val);
-  Value* get_pointer_val(unsigned base_reg, int64_t scale, unsigned idx_reg, int64_t offset, unsigned seg_reg);
-  Value* get_mem_val(unsigned base_reg, int64_t scale, unsigned idx_reg, int64_t offset, unsigned seg_reg, unsigned mem_size);
-  void store_mem_val(unsigned base_reg, int64_t scale, unsigned idx_reg, int64_t offset, unsigned seg_reg, Value* val);
+  Value* get_pointer_val(BasicBlock* BB, unsigned base_reg, int64_t scale, unsigned idx_reg, int64_t offset, unsigned seg_reg);
+  Value* get_mem_val(BasicBlock* BB, unsigned base_reg, int64_t scale, unsigned idx_reg, int64_t offset, unsigned seg_reg, unsigned mem_size);
+  void store_mem_val(BasicBlock* BB, unsigned base_reg, int64_t scale, unsigned idx_reg, int64_t offset, unsigned seg_reg, Value* val);
   Constant* get_imm_val(int64_t imm, unsigned init_size, unsigned final_size);
 
 #define declare_store_flag_val(name) \

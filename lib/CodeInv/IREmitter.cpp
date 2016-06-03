@@ -77,10 +77,14 @@ void IREmitter::initDispacher()
   visitDispachers[X86::SHR64ri] = &IREmitter::visitSHR64ri;
   
   visitDispachers[X86::AND64ri8] = &IREmitter::visitAND64ri8;
+  visitDispachers[X86::OR64ri8] = &IREmitter::visitOR64ri8;
   visitDispachers[X86::XOR32rr] = &IREmitter::visitXOR32r;
+  
+  visitDispachers[X86::NEG32r] = &IREmitter::visitNEG32r;
   
   visitDispachers[X86::CMP32ri8] = &IREmitter::visitCMP32ri8;
   visitDispachers[X86::CMP64ri8] = &IREmitter::visitCMP64ri8;
+  visitDispachers[X86::CMP64i32] = &IREmitter::visitCMP64i32;
   visitDispachers[X86::CMP64rr] = &IREmitter::visitCMP64r;
   visitDispachers[X86::CMP32mi8] = &IREmitter::visitCMP32mi8;
   visitDispachers[X86::CMP64mi8] = &IREmitter::visitCMP64mi8;
@@ -93,6 +97,7 @@ void IREmitter::initDispacher()
   visitDispachers[X86::JMP_1] = &IREmitter::visitJMP;
   visitDispachers[X86::JMP64pcrel32] = &IREmitter::visitJMP;
   visitDispachers[X86::JA_1] = &IREmitter::visitJA_1;
+  visitDispachers[X86::JAE_1] = &IREmitter::visitJAE_1;
   visitDispachers[X86::JE_1] = &IREmitter::visitJE_1;
   visitDispachers[X86::JNE_1] = &IREmitter::visitJNE_1;
   
@@ -106,6 +111,9 @@ void IREmitter::initDispacher()
   visitDispachers[X86::NOOPW] = &IREmitter::visitNOOP;
   visitDispachers[X86::REP_PREFIX] = &IREmitter::visitNOOP;
   visitDispachers[X86::HLT] = &IREmitter::visitNOOP;
+  
+  visitDispachers[X86::SYSCALL] = &IREmitter::visitSYSCALL;
+  
 }
 
 void IREmitter::EmitIR(BasicBlock *BB, MachineInstr* CurInst) {
@@ -232,31 +240,36 @@ void IREmitter::store_reg_val(unsigned reg, Value* val)
   IRB->CreateStore(val, super_reg_var);
 }
 
-Value* IREmitter::get_pointer_val(unsigned base_reg, int64_t scale, unsigned idx_reg, int64_t offset, unsigned seg_reg)
+Value* IREmitter::get_pointer_val(BasicBlock* BB, unsigned base_reg, int64_t scale, unsigned idx_reg, int64_t offset, unsigned seg_reg)
 {
   LLVMContext* context = Dec->getContext();
 
+  Value* seg_val = base_reg==X86::NoRegister ? ConstantInt::get(Type::getInt64Ty(*context), 0) : get_reg_val(base_reg);
   Value* base_val = base_reg==X86::NoRegister ? ConstantInt::get(Type::getInt64Ty(*context), 0) : get_reg_val(base_reg);
   Value* scale_val = ConstantInt::get(Type::getInt64Ty(*context), scale);
   Value* idx_val = idx_reg==X86::NoRegister ? ConstantInt::get(Type::getInt64Ty(*context), 0) : get_reg_val(idx_reg);
   Value* offset_val = ConstantInt::get(Type::getInt64Ty(*context), offset);
-  assert(seg_reg==X86::NoRegister && "seg reg is not noreg");
-
-  return IRB->CreateAdd(base_val, IRB->CreateAdd(offset_val, IRB->CreateMul(idx_val, scale_val)));
+  if(seg_reg != X86::NoRegister)
+  {
+    std::vector<Value*> args = {seg_val, base_val, scale_val, idx_val, offset_val};
+    return IRB->CreateCall(BB->getParent()->getParent()->getFunction("saib_addressing"), args);
+  }
+  else
+    return IRB->CreateAdd(base_val, IRB->CreateAdd(offset_val, IRB->CreateMul(idx_val, scale_val)));
 }
 
-Value* IREmitter::get_mem_val(unsigned base_reg, int64_t scale, unsigned idx_reg, int64_t offset, unsigned seg_reg, unsigned mem_size)
+Value* IREmitter::get_mem_val(BasicBlock* BB, unsigned base_reg, int64_t scale, unsigned idx_reg, int64_t offset, unsigned seg_reg, unsigned mem_size)
 {
   LLVMContext* context = Dec->getContext();
 
-  Value* pointer = IRB->CreateIntToPtr(get_pointer_val(base_reg, scale, idx_reg, offset, seg_reg), PointerType::get(Type::getIntNTy(*context, mem_size), 0));
+  Value* pointer = IRB->CreateIntToPtr(get_pointer_val(BB, base_reg, scale, idx_reg, offset, seg_reg), PointerType::get(Type::getIntNTy(*context, mem_size), 0));
 
   return IRB->CreateLoad(pointer);
 }
 
-void IREmitter::store_mem_val(unsigned base_reg, int64_t scale, unsigned idx_reg, int64_t offset, unsigned seg_reg, Value* val)
+void IREmitter::store_mem_val(BasicBlock* BB, unsigned base_reg, int64_t scale, unsigned idx_reg, int64_t offset, unsigned seg_reg, Value* val)
 {
-  Value* pointer = IRB->CreateIntToPtr(get_pointer_val(base_reg, scale, idx_reg, offset, seg_reg), PointerType::get(val->getType(), 0));
+  Value* pointer = IRB->CreateIntToPtr(get_pointer_val(BB, base_reg, scale, idx_reg, offset, seg_reg), PointerType::get(val->getType(), 0));
 
   IRB->CreateStore(val, pointer);
 }
@@ -411,7 +424,7 @@ define_visit(MOV32rm)
   IRB->SetInsertPoint(BB);
 
   // read src
-  Value* src_val = get_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 32);
+  Value* src_val = get_mem_val(BB, base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 32);
 
   // compute
   Value* result = src_val;
@@ -499,7 +512,7 @@ define_visit(MOV8m)
   Value* result = src_val;
 
   // mask and store result
-  store_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), result);
+  store_mem_val(BB, base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), result);
 }
 
 define_visit(MOV32m)
@@ -514,7 +527,7 @@ define_visit(MOV32m)
   MachineOperand& off_opr = I->getOperand(3);
   assert(off_opr.isImm() && "opr 3(off) is not imm in IREmitter::visitMOV32mr");
   MachineOperand& seg_opr = I->getOperand(4);
-  assert(seg_opr.isReg() && seg_opr.getReg()==X86::NoRegister && "opr 4(seg) is not noreg in IREmitter::visitMOV32mr");
+  assert(seg_opr.isReg());
   MachineOperand& src_opr = I->getOperand(5);
 
   IRB->SetInsertPoint(BB);
@@ -534,7 +547,7 @@ define_visit(MOV32m)
   Value* result = src_val;
 
   // mask and store result
-  store_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), result);
+  store_mem_val(BB, base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), result);
 }
 
 define_visit(MOV64m)
@@ -549,7 +562,7 @@ define_visit(MOV64m)
   MachineOperand& off_opr = I->getOperand(3);
   assert(off_opr.isImm() && "opr 3(off) is not imm in IREmitter::visitMOV64m");
   MachineOperand& seg_opr = I->getOperand(4);
-  assert(seg_opr.isReg() && seg_opr.getReg()==X86::NoRegister && "opr 4(seg) is not noreg in IREmitter::visitMOV32mr");
+  assert(seg_opr.isReg());
   MachineOperand& src_opr = I->getOperand(5);
 
   IRB->SetInsertPoint(BB);
@@ -569,7 +582,7 @@ define_visit(MOV64m)
   Value* result = src_val;
 
   // mask and store result
-  store_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), result);
+  store_mem_val(BB, base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), result);
 }
 
 define_visit(MOV64mi32)
@@ -584,7 +597,7 @@ define_visit(MOV64mi32)
   MachineOperand& off_opr = I->getOperand(3);
   assert(off_opr.isImm() && "opr 3(off) is not imm in IREmitter::visitMOV64m");
   MachineOperand& seg_opr = I->getOperand(4);
-  assert(seg_opr.isReg() && seg_opr.getReg()==X86::NoRegister && "opr 4(seg) is not noreg in IREmitter::visitMOV64m");
+  assert(seg_opr.isReg());
   MachineOperand& src_opr = I->getOperand(5);
   assert(src_opr.isImm() && "opr 5(imm) is not imm in IREmitter::visitMOV64m");
 
@@ -597,7 +610,7 @@ define_visit(MOV64mi32)
   Value* result = src_val;
 
   // mask and store result
-  store_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), result);
+  store_mem_val(BB, base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), result);
 }
 
 define_visit(MOV64rm)
@@ -614,12 +627,12 @@ define_visit(MOV64rm)
   MachineOperand& off_opr = I->getOperand(4);
   assert(off_opr.isImm() && "opr 4(off) is not imm in IREmitter::visitMOV64rm");
   MachineOperand& seg_opr = I->getOperand(5);
-  assert(seg_opr.isReg() && seg_opr.getReg()==X86::NoRegister && "opr 5(seg) is not noreg in IREmitter::visitMOV64rm");
+  assert(seg_opr.isReg());
 
   IRB->SetInsertPoint(BB);
 
   // read src
-  Value* src_val = get_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 64);
+  Value* src_val = get_mem_val(BB, base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 64);
 
   // compute
   Value* result = src_val;
@@ -642,12 +655,12 @@ define_visit(LEA64r)
   MachineOperand& off_opr = I->getOperand(4);
   assert(off_opr.isImm() && "opr 4(off) is not imm in IREmitter::visitLEA64r");
   MachineOperand& seg_opr = I->getOperand(5);
-  assert(seg_opr.isReg() && seg_opr.getReg()==X86::NoRegister && "opr 5(seg) is not noreg in IREmitter::visitLEA64r");
+  assert(seg_opr.isReg());
 
   IRB->SetInsertPoint(BB);
 
   // read src
-  Value* src_val = get_pointer_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg());
+  Value* src_val = get_pointer_val(BB, base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg());
 
   // compute
   Value* result = src_val;
@@ -996,6 +1009,39 @@ define_visit(AND64ri8)
   IRB->CreateStore(ConstantInt::getFalse(*context), Dec->getModule()->getGlobalVariable("OF"));
 }
 
+define_visit(OR64ri8)
+{
+  assert(I->getNumOperands()==4);
+  MachineOperand& lhs_opr = I->getOperand(1);
+  assert(lhs_opr.isReg());
+  MachineOperand& rhs_opr = I->getOperand(2);
+  assert(rhs_opr.isImm());
+  assert(I->getOperand(3).isReg() && I->getOperand(3).getReg()==X86::EFLAGS);
+  MachineOperand& des_opr = I->getOperand(0);
+  assert(des_opr.isReg() && des_opr.getReg()==lhs_opr.getReg());
+  
+  IRB->SetInsertPoint(BB);
+  LLVMContext* context = Dec->getContext();
+
+  //read lhs
+  Value* lhs_val = get_reg_val(lhs_opr.getReg());
+
+  //read rhs
+  Constant* rhs_val = get_imm_val(rhs_opr.getImm(), 8, 64);
+
+  // compute
+  Value* result = IRB->CreateOr(lhs_val, rhs_val);
+
+  // writeback
+  store_reg_val(des_opr.getReg(), result);
+
+  store_PF_val(I->getOpcode(), lhs_val, rhs_val, result);
+  store_ZF_val(I->getOpcode(), lhs_val, rhs_val, result);
+  store_SF_val(I->getOpcode(), lhs_val, rhs_val, result);
+  IRB->CreateStore(ConstantInt::getFalse(*context), Dec->getModule()->getGlobalVariable("CF"));
+  IRB->CreateStore(ConstantInt::getFalse(*context), Dec->getModule()->getGlobalVariable("OF"));
+}
+
 define_visit(XOR32r)
 {
   assert(I->getNumOperands()==4);
@@ -1035,6 +1081,30 @@ define_visit(XOR32r)
   store_SF_val(I->getOpcode(), lhs_val, rhs_val, result);
   IRB->CreateStore(ConstantInt::getFalse(*context), Dec->getModule()->getGlobalVariable("CF"));
   IRB->CreateStore(ConstantInt::getFalse(*context), Dec->getModule()->getGlobalVariable("OF"));
+}
+
+define_visit(NEG32r)
+{
+  assert(I->getNumOperands()==3);
+  MachineOperand& src_opr = I->getOperand(1);
+  assert(src_opr.isReg());
+  MachineOperand& des_opr = I->getOperand(0);
+  assert(des_opr.isReg() && des_opr.getReg()==src_opr.getReg());
+  assert(I->getOperand(2).isReg() && I->getOperand(2).getReg()==X86::EFLAGS);
+  
+  IRB->SetInsertPoint(BB);
+
+  //read src
+  Value* src_val = get_reg_val(src_opr.getReg());
+
+  // compute
+  Value* result = IRB->CreateNeg(src_val);
+
+  // writeback
+  store_reg_val(des_opr.getReg(), result);
+
+  // set CF
+  IRB->CreateStore(IRB->CreateICmpNE(src_val, ConstantInt::get(src_val->getType(), 0)), Dec->getModule()->getGlobalVariable("CF"));
 }
 
 define_visit(CMP32ri8)
@@ -1081,6 +1151,35 @@ define_visit(CMP64ri8)
 
   //read rhs
   Value* rhs_val = get_imm_val(rhs_opr.getImm(), 8, 64);
+
+  // compute
+  Value* result = IRB->CreateSub(lhs_val, rhs_val);
+
+  store_AF_val(I->getOpcode(), lhs_val, rhs_val, result);
+  store_PF_val(I->getOpcode(), lhs_val, rhs_val, result);
+  store_ZF_val(I->getOpcode(), lhs_val, rhs_val, result);
+  store_SF_val(I->getOpcode(), lhs_val, rhs_val, result);
+  store_CF_val(I->getOpcode(), lhs_val, rhs_val, result);
+  store_OF_val(I->getOpcode(), lhs_val, rhs_val, result);
+}
+
+define_visit(CMP64i32)
+{
+  assert(I->getNumOperands()==4);
+  MachineOperand& lhs_opr = I->getOperand(3);
+  assert(lhs_opr.isReg());
+  assert(I->getOperand(1).isReg() && I->getOperand(1).getReg()==lhs_opr.getReg());  // is defed reg, why?
+  MachineOperand& rhs_opr = I->getOperand(0);
+  assert(rhs_opr.isImm());
+  assert(I->getOperand(2).isReg() && I->getOperand(2).getReg()==X86::EFLAGS);
+  
+  IRB->SetInsertPoint(BB);
+
+  // read lhs
+  Value* lhs_val = get_reg_val(lhs_opr.getReg());
+
+  //read rhs
+  Value* rhs_val = get_imm_val(rhs_opr.getImm(), 32, 64);
 
   // compute
   Value* result = IRB->CreateSub(lhs_val, rhs_val);
@@ -1140,14 +1239,14 @@ define_visit(CMP32mi8)
   MachineOperand& off_opr = I->getOperand(3);
   assert(off_opr.isImm() && "opr 3(off) is not imm in IREmitter::visitCMP32mi8");
   MachineOperand& seg_opr = I->getOperand(4);
-  assert(seg_opr.isReg() && seg_opr.getReg()==X86::NoRegister && "opr 4(seg) is not noreg in IREmitter::visitCMP32mi8");
+  assert(seg_opr.isReg());
   MachineOperand& rhs_opr = I->getOperand(5);
   assert(I->getOperand(6).isReg() && I->getOperand(6).getReg()==X86::EFLAGS && "opr 2(efalgs) is not eflags in IREmitter::visitCMP32mi8");
 
   IRB->SetInsertPoint(BB);
 
   // read lhs
-  Value* lhs_val = get_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 32);
+  Value* lhs_val = get_mem_val(BB, base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 32);
 
   //read rhs
   Value* rhs_val = get_imm_val(rhs_opr.getImm(), 8, 32);
@@ -1182,7 +1281,7 @@ define_visit(CMP64mi8)
   IRB->SetInsertPoint(BB);
 
   // read lhs
-  Value* lhs_val = get_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 64);
+  Value* lhs_val = get_mem_val(BB, base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 64);
 
   //read rhs
   Value* rhs_val = get_imm_val(rhs_opr.getImm(), 8, 64);
@@ -1217,7 +1316,7 @@ define_visit(CMP8mi)
   IRB->SetInsertPoint(BB);
 
   // read lhs
-  Value* lhs_val = get_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 8);
+  Value* lhs_val = get_mem_val(BB, base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 8);
 
   //read rhs
   Value* rhs_val = get_imm_val(rhs_opr.getImm(), 8, 8);
@@ -1316,7 +1415,7 @@ define_visit(PUSH64r)
   // compute
   Value* result = src_val;
 
-  store_mem_val(X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, result);
+  store_mem_val(BB, X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, result);
 }
 
 define_visit(POP64r)
@@ -1329,7 +1428,7 @@ define_visit(POP64r)
 
   // mov (%rsp), des
   // read src
-  Value* src_val = get_mem_val(X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, 64);
+  Value* src_val = get_mem_val(BB, X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, 64);
 
   // compute
   Value* result = src_val;
@@ -1357,7 +1456,7 @@ define_visit(LEAVE64)
   store_reg_val(X86::RSP, get_reg_val(X86::RBP));
 
   // mov (%rsp), %rbp
-  store_reg_val(X86::RBP, get_mem_val(X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, 64));
+  store_reg_val(X86::RBP, get_mem_val(BB, X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, 64));
 
   // rsp = rsp + 8
   Value* lhs_val = get_reg_val(X86::RSP);
@@ -1394,10 +1493,34 @@ define_visit(JA_1)
   Value* cond_val = IRB->CreateAnd(IRB->CreateICmpEQ(cf_val, ConstantInt::getFalse(*context)), IRB->CreateICmpEQ(zf_val, ConstantInt::getFalse(*context)));
 
   std::stringstream true_bb_name;
-  true_bb_name << "bb_" << (I->getDebugLoc().getLine()+ I->getDesc().getSize() + off);
+  true_bb_name << "bb_" << (Dec->getDisassembler()->getDebugOffset(I->getDebugLoc())+ I->getDesc().getSize() + off);
   BasicBlock* true_bb  = Dec->getOrCreateBasicBlock(true_bb_name.str(), BB->getParent());
   std::stringstream false_bb_name;
-  false_bb_name << "bb_" << (I->getDebugLoc().getLine()+ I->getDesc().getSize());
+  false_bb_name << "bb_" << (Dec->getDisassembler()->getDebugOffset(I->getDebugLoc())+ I->getDesc().getSize());
+  BasicBlock* false_bb  = Dec->getOrCreateBasicBlock(false_bb_name.str(), BB->getParent());
+  IRB->CreateCondBr(cond_val, true_bb, false_bb);
+}
+
+define_visit(JAE_1)
+{
+  assert(I->getNumOperands()==2 && "opr's num is not 2");
+  MachineOperand& off_opr = I->getOperand(0);
+  assert(off_opr.isImm() && "opr 0(off) is not imm");
+  assert(I->getOperand(1).isReg() && I->getOperand(1).getReg()==X86::EFLAGS && "opr 1(efalgs) is not eflags");
+
+  IRB->SetInsertPoint(BB);
+  LLVMContext* context = Dec->getContext();
+
+  int64_t off = off_opr.getImm();
+
+  Value* cf_val = get_CF_val();
+  Value* cond_val = IRB->CreateICmpEQ(cf_val, ConstantInt::getFalse(*context));
+
+  std::stringstream true_bb_name;
+  true_bb_name << "bb_" << (Dec->getDisassembler()->getDebugOffset(I->getDebugLoc()) + I->getDesc().getSize() + off);
+  BasicBlock* true_bb  = Dec->getOrCreateBasicBlock(true_bb_name.str(), BB->getParent());
+  std::stringstream false_bb_name;
+  false_bb_name << "bb_" << (Dec->getDisassembler()->getDebugOffset(I->getDebugLoc()) + I->getDesc().getSize());
   BasicBlock* false_bb  = Dec->getOrCreateBasicBlock(false_bb_name.str(), BB->getParent());
   IRB->CreateCondBr(cond_val, true_bb, false_bb);
 }
@@ -1418,10 +1541,10 @@ define_visit(JE_1)
   Value* cond_val = IRB->CreateICmpEQ(zf_val, ConstantInt::getTrue(*context));
 
   std::stringstream true_bb_name;
-  true_bb_name << "bb_" << (I->getDebugLoc().getLine()+ I->getDesc().getSize() + off);
+  true_bb_name << "bb_" << (Dec->getDisassembler()->getDebugOffset(I->getDebugLoc()) + I->getDesc().getSize() + off);
   BasicBlock* true_bb  = Dec->getOrCreateBasicBlock(true_bb_name.str(), BB->getParent());
   std::stringstream false_bb_name;
-  false_bb_name << "bb_" << (I->getDebugLoc().getLine()+ I->getDesc().getSize());
+  false_bb_name << "bb_" << (Dec->getDisassembler()->getDebugOffset(I->getDebugLoc()) + I->getDesc().getSize());
   BasicBlock* false_bb  = Dec->getOrCreateBasicBlock(false_bb_name.str(), BB->getParent());
   IRB->CreateCondBr(cond_val, true_bb, false_bb);
 }
@@ -1442,10 +1565,10 @@ define_visit(JNE_1)
   Value* cond_val = IRB->CreateICmpEQ(zf_val, ConstantInt::getFalse(*context));
 
   std::stringstream true_bb_name;
-  true_bb_name << "bb_" << (I->getDebugLoc().getLine()+ I->getDesc().getSize() + off);
+  true_bb_name << "bb_" << (Dec->getDisassembler()->getDebugOffset(I->getDebugLoc()) + I->getDesc().getSize() + off);
   BasicBlock* true_bb  = Dec->getOrCreateBasicBlock(true_bb_name.str(), BB->getParent());
   std::stringstream false_bb_name;
-  false_bb_name << "bb_" << (I->getDebugLoc().getLine()+ I->getDesc().getSize());
+  false_bb_name << "bb_" << (Dec->getDisassembler()->getDebugOffset(I->getDebugLoc()) + I->getDesc().getSize());
   BasicBlock* false_bb  = Dec->getOrCreateBasicBlock(false_bb_name.str(), BB->getParent());
   IRB->CreateCondBr(cond_val, true_bb, false_bb);
 }
@@ -1461,7 +1584,7 @@ define_visit(JMP)
   int64_t off = off_opr.getImm();
 
   std::stringstream bb_name;
-  bb_name << "bb_" << (I->getDebugLoc().getLine()+ I->getDesc().getSize() + off);
+  bb_name << "bb_" << (Dec->getDisassembler()->getDebugOffset(I->getDebugLoc())+ I->getDesc().getSize() + off);
   BasicBlock* bb  = Dec->getOrCreateBasicBlock(bb_name.str(), BB->getParent());
   IRB->CreateBr(bb);
 }
@@ -1488,11 +1611,11 @@ define_visit(CALL64pcrel32)
   // compute
   Value* result = src_val;
 
-  store_mem_val(X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, result);
+  store_mem_val(BB, X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, result);
 
   // jmp target
   int64_t off = off_opr.getImm();
-  int64_t target = I->getDebugLoc().getLine()+ I->getDesc().getSize() + off;
+  int64_t target = Dec->getDisassembler()->getDebugOffset(I->getDebugLoc())+ I->getDesc().getSize() + off;
   Function* target_func = Dec->getFunctionByAddr(target);
   if(target_func)
     IRB->CreateCall(target_func);
@@ -1534,7 +1657,7 @@ define_visit(CALL64r)
   // compute
   Value* result = src_val;
 
-  store_mem_val(X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, result);
+  store_mem_val(BB, X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, result);
 
  // jmp target
   Value* target_val = get_reg_val(target_opr.getReg());
@@ -1553,7 +1676,7 @@ define_visit(CALL64m)
   MachineOperand& off_opr = I->getOperand(3);
   assert(off_opr.isImm());
   MachineOperand& seg_opr = I->getOperand(4);
-  assert(seg_opr.isReg() && seg_opr.getReg()==X86::NoRegister);
+  assert(seg_opr.isReg());
   assert(I->getOperand(5).isReg() && I->getOperand(5).getReg()==X86::RSP);
 
   IRB->SetInsertPoint(BB);
@@ -1570,7 +1693,7 @@ define_visit(CALL64m)
   // compute
   Value* result = src_val;
 
-  store_mem_val(X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, result);
+  store_mem_val(BB, X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, result);
 
  // jmp target
 //  Value* target_val = get_reg_val(target_opr.getReg());
@@ -1587,7 +1710,7 @@ define_visit(RET)
   // pop rip
   // mov (%rsp), rip
   // read src
-  Value* src_val = get_mem_val(X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, 64);
+  Value* src_val = get_mem_val(BB, X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, 64);
 
   // compute
   Value* result = src_val;
@@ -1610,6 +1733,22 @@ define_visit(NOOP)
   LLVMContext* context = Dec->getContext();
 
   IRB->CreateCall(Intrinsic::getDeclaration(Dec->getModule(), Intrinsic::donothing, {Type::getVoidTy(*context)}));
+}
+
+define_visit(SYSCALL)
+{
+  IRB->SetInsertPoint(BB);
+
+  Value* sys_num = get_reg_val(X86::RAX);
+  Value* arg1 = get_reg_val(X86::RDI);
+  Value* arg2 = get_reg_val(X86::RSI);
+  Value* arg3 = get_reg_val(X86::RDX);
+  Value* arg4 = get_reg_val(X86::R10);
+  Value* arg5 = get_reg_val(X86::R8);
+  Value* arg6 = get_reg_val(X86::R9);
+  std::vector<Value*> args = {sys_num, arg1, arg2, arg3, arg4, arg5, arg6};
+
+  IRB->CreateCall(BB->getParent()->getParent()->getFunction("saib_syscall"), args);
 }
 
 } // End namespace fracture

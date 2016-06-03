@@ -127,6 +127,7 @@ Module* get_module_with_function(unsigned long addr)
   Function* func = decompiler->decompileFunction(get_unload_addr(addr));
   assert(!func->empty());
   Module* mdl = decompiler->getModule();
+  mdl->dump();
   return mdl;
 }
 
