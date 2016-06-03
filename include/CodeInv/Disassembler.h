@@ -164,6 +164,11 @@ public:
   const object::SectionRef getCurrentSection() const {
     return CurSection;
   }
+  std::string getCurrentSectionName() const {
+    StringRef SectionName;
+    CurSection.getName(SectionName);
+    return SectionName;
+  }
   const object::SectionRef getSectionByName(StringRef SectionName) const;
   const object::SectionRef getSectionByExpression(StringRef SectionExpression) const;
   const object::SectionRef getSectionByAddress(unsigned Address) const;
@@ -189,7 +194,7 @@ public:
 
   std::map<StringRef, uint64_t> getRelocOrigins() { return RelocOrigins; };
   uint64_t getDebugOffset(const DebugLoc &Loc) const;
-  DebugLoc* setDebugLoc(uint64_t Address);
+  DebugLoc* setDebugLoc(uint64_t Address) const;
   void deleteFunction(MachineFunction* MF);
 private:
   object::SectionRef CurSection;

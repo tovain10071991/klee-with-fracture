@@ -305,7 +305,7 @@ unsigned Disassembler::decodeInstruction(unsigned Address,
   return ((unsigned)InstSize);
 }
 
-DebugLoc* Disassembler::setDebugLoc(uint64_t Address) {
+DebugLoc* Disassembler::setDebugLoc(uint64_t Address) const {
   // Note: Location stores offset of instruction, which is really a perverse
   //       misuse of this field.
   Type *Int64 = Type::getInt64Ty(*MC->getContext());

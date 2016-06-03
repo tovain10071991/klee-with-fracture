@@ -244,7 +244,7 @@ Value* IREmitter::get_pointer_val(BasicBlock* BB, unsigned base_reg, int64_t sca
 {
   LLVMContext* context = Dec->getContext();
 
-  Value* seg_val = base_reg==X86::NoRegister ? ConstantInt::get(Type::getInt64Ty(*context), 0) : get_reg_val(base_reg);
+  Value* seg_val = seg_reg==X86::NoRegister ? ConstantInt::get(Type::getInt64Ty(*context), 0) : get_reg_val(seg_reg);
   Value* base_val = base_reg==X86::NoRegister ? ConstantInt::get(Type::getInt64Ty(*context), 0) : get_reg_val(base_reg);
   Value* scale_val = ConstantInt::get(Type::getInt64Ty(*context), scale);
   Value* idx_val = idx_reg==X86::NoRegister ? ConstantInt::get(Type::getInt64Ty(*context), 0) : get_reg_val(idx_reg);
@@ -365,7 +365,7 @@ void IREmitter::visit(BasicBlock *BB, MachineInstr* CurInst) {
   
   IRB->SetInsertPoint(BB);
   LLVMContext* context = Dec->getContext();
-  ConstantInt* next_rip = ConstantInt::get(Type::getInt64Ty(*context), Dec->getDisassembler()->getDebugOffset(CurInst->getDebugLoc()) + CurInst->getDesc().getSize());
+  ConstantInt* next_rip = ConstantInt::get(Type::getInt64Ty(*context), get_load_addr(Dec->getDisassembler()->getDebugOffset(CurInst->getDebugLoc()), Dec->getDisassembler()->getExecutable()->getFileName(), Dec->getDisassembler()->getCurrentSectionName()) + CurInst->getDesc().getSize());
   store_reg_val(X86::RIP, next_rip);
   
   assert(visitDispachers.find(CurInst->getOpcode()) != visitDispachers.end() && "unknown opcode when decompileBasicBlock");
@@ -1615,7 +1615,7 @@ define_visit(CALL64pcrel32)
 
   // jmp target
   int64_t off = off_opr.getImm();
-  int64_t target = Dec->getDisassembler()->getDebugOffset(I->getDebugLoc())+ I->getDesc().getSize() + off;
+  int64_t target = get_load_addr(Dec->getDisassembler()->getDebugOffset(I->getDebugLoc()), Dec->getDisassembler()->getExecutable()->getFileName(), Dec->getDisassembler()->getCurrentSectionName()) + I->getDesc().getSize() + off;
   Function* target_func = Dec->getFunctionByAddr(target);
   if(target_func)
     IRB->CreateCall(target_func);
@@ -1748,7 +1748,8 @@ define_visit(SYSCALL)
   Value* arg6 = get_reg_val(X86::R9);
   std::vector<Value*> args = {sys_num, arg1, arg2, arg3, arg4, arg5, arg6};
 
-  IRB->CreateCall(BB->getParent()->getParent()->getFunction("saib_syscall"), args);
+  Value* result = IRB->CreateCall(BB->getParent()->getParent()->getFunction("saib_syscall"), args);
+  store_reg_val(X86::RAX, result);
 }
 
 } // End namespace fracture
