@@ -15,6 +15,10 @@
 #include "lldb/API/SBValueList.h"
 #include "lldb/API/SBValue.h"
 #include "lldb/API/SBStream.h"
+#include "lldb/API/SBEvent.h"
+#include "lldb/API/SBBroadcaster.h"
+#include "lldb/API/SBListener.h"
+#include "lldb/API/SBModuleSpec.h"
 
 #include <link.h>
 #include <err.h>
@@ -28,6 +32,7 @@
 #include <algorithm>
 #include <map>
 #include <stdio.h>
+#include <string.h>
 
 using namespace std;
 using namespace lldb;
@@ -53,6 +58,13 @@ public:
 
 static LLDBInited inited;
 
+string get_absolute(string name)
+{
+  if(name[0] == '/')
+    return name;
+  return string(get_current_dir_name()) + "/" + name;
+}
+
 uint64_t get_entry(object::ObjectFile* obj)
 {
   auto elf_file = dyn_cast<object::ELF64LEObjectFile>(obj)->getELFFile();
@@ -63,18 +75,52 @@ uint64_t get_entry(object::ObjectFile* obj)
 void create_debugger(object::ObjectFile* obj)
 {
   main_obj = obj;
-  target = debugger.CreateTarget(obj->getFileName().data());
-  SBBreakpoint breakpoint_for_launch = target.BreakpointCreateByAddress(get_entry(obj));  
-  assert(breakpoint_for_launch.IsValid());
-  SBLaunchInfo launch_info(NULL);
+  string ld_path = "/lib64/ld-linux-x86-64.so.2";
+  assert(!access(ld_path.c_str(), F_OK));
+  target = debugger.CreateTarget(ld_path.c_str());
+  
+  SBModuleSpec module_spec;
+  module_spec.SetFileSpec(SBFileSpec(get_absolute(obj->getFileName().str()).c_str()));
+  target.AddModule(module_spec);
+  
+  SBBreakpoint breakpoint_for_entry = target.BreakpointCreateByName("dl_main");
+  assert(breakpoint_for_entry.IsValid());    
+
+  char* argv[2];
+  string absolute_path = get_absolute(obj->getFileName().str());
+  argv[0] = (char*)malloc(absolute_path.size()+1);
+  strncpy(argv[0], absolute_path.data(), absolute_path.size()+1);
+  argv[1] = 0;
+  SBLaunchInfo launch_info(const_cast<const char**>(argv));
+  cerr << "arg num: " << launch_info.GetNumArguments() << endl;
+  for(unsigned i = 0; i < launch_info.GetNumArguments(); ++i)
+    cerr << launch_info.GetArgumentAtIndex(i) << endl;
   SBError error;
   process = target.Launch(launch_info, error);
   assert(error.Success());
   
+  SBBreakpoint breakpoint_for_tls = target.BreakpointCreateByName("init_tls");
+  assert(breakpoint_for_tls.IsValid());
+  
   SBBreakpoint breakpoint_for_main = target.BreakpointCreateByAddress(get_addr("main"));
   assert(breakpoint_for_main.IsValid());
+  
   error = process.Continue();
   assert(error.Success());
+  
+  SBThread thread = process.GetSelectedThread();
+  SBFrame frame = thread.GetSelectedFrame();
+  cerr << "pc: 0x" << hex << frame.GetPC() << endl;
+  
+  if(frame.GetPC() != get_addr("main"))
+  {
+    assert(frame.GetPC() == get_addr("init_tls"));
+    error = process.Continue();
+    assert(error.Success());    
+    frame = thread.GetSelectedFrame();
+    cerr << "pc: 0x" << hex << frame.GetPC() << endl;
+    assert(frame.GetPC() == get_addr("main"));    
+  }
 }
 
 void create_debugger(string binary)
@@ -82,13 +128,6 @@ void create_debugger(string binary)
   main_obj = object::ObjectFile::createObjectFile(binary);
   assert(main_obj->isObject() && main_obj->isELF() && "it is not object");
   create_debugger(main_obj);
-}
-
-string get_absolute(string name)
-{
-  if(name[0] == '/')
-    return name;
-  return string(get_current_dir_name()) + "/" + name;
 }
 
 string get_absolute(SBFileSpec file_spec)
