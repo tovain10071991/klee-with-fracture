@@ -43,8 +43,6 @@ using namespace llvm;
 
 static SBDebugger debugger;
 static SBTarget target;
-static SBProcess process;
-static object::ObjectFile* main_obj;
 
 class LLDBInited {
 public:
@@ -58,77 +56,79 @@ public:
 
 static LLDBInited inited;
 
-string get_absolute(string name)
+addr_t get_load_start_addr()
 {
-  if(name[0] == '/')
-    return name;
-  return string(get_current_dir_name()) + "/" + name;
+  addr_t start_addr = get_load_func_addr("main");
+  if(!start_addr)
+    start_addr = get_entry(binary);
 }
 
-uint64_t get_entry(object::ObjectFile* obj)
+void create_target(string binary)
 {
-  auto elf_file = dyn_cast<object::ELF64LEObjectFile>(obj)->getELFFile();
-  auto ehdr = elf_file->getHeader();
-  return ehdr->e_entry;
+  assert(!access(binary.c_str(), F_OK));
+  target = debugger.CreateTarget(binary.c_str());
 }
 
-void create_debugger(object::ObjectFile* obj)
+void add_module(map<addr_t, string> module_base_set)
 {
-  main_obj = obj;
-  string ld_path = "/lib64/ld-linux-x86-64.so.2";
-  assert(!access(ld_path.c_str(), F_OK));
-  target = debugger.CreateTarget(ld_path.c_str());
-  
-  SBModuleSpec module_spec;
-  module_spec.SetFileSpec(SBFileSpec(get_absolute(obj->getFileName().str()).c_str()));
-  target.AddModule(module_spec);
-  
-  SBBreakpoint breakpoint_for_entry = target.BreakpointCreateByName("dl_main");
-  assert(breakpoint_for_entry.IsValid());    
-
-  char* argv[2];
-  string absolute_path = get_absolute(obj->getFileName().str());
-  argv[0] = (char*)malloc(absolute_path.size()+1);
-  strncpy(argv[0], absolute_path.data(), absolute_path.size()+1);
-  argv[1] = 0;
-  SBLaunchInfo launch_info(const_cast<const char**>(argv));
-  cerr << "arg num: " << launch_info.GetNumArguments() << endl;
-  for(unsigned i = 0; i < launch_info.GetNumArguments(); ++i)
-    cerr << launch_info.GetArgumentAtIndex(i) << endl;
-  SBError error;
-  process = target.Launch(launch_info, error);
-  assert(error.Success());
-  
-  SBBreakpoint breakpoint_for_tls = target.BreakpointCreateByName("init_tls");
-  assert(breakpoint_for_tls.IsValid());
-  
-  SBBreakpoint breakpoint_for_main = target.BreakpointCreateByAddress(get_addr("main"));
-  assert(breakpoint_for_main.IsValid());
-  
-  error = process.Continue();
-  assert(error.Success());
-  
-  SBThread thread = process.GetSelectedThread();
-  SBFrame frame = thread.GetSelectedFrame();
-  cerr << "pc: 0x" << hex << frame.GetPC() << endl;
-  
-  if(frame.GetPC() != get_addr("main"))
+  for(auto module_base_iter = module_base_set.begin(); module_base_iter != module_base_set().end(); ++ module_base_iter)
   {
-    assert(frame.GetPC() == get_addr("init_tls"));
-    error = process.Continue();
-    assert(error.Success());    
-    frame = thread.GetSelectedFrame();
-    cerr << "pc: 0x" << hex << frame.GetPC() << endl;
-    assert(frame.GetPC() == get_addr("main"));    
+    SBModuleSpec module_spec;
+    module_spec.SetFileSpec(SBFileSpec(get_absolute(module_base_iter->second.c_str())));
+    if(taget.FindModule(module_spec).IsValid())
+      continue;
+    SBModule module = target.AddModule(module_spec);
+    target.SetModuleLoadAddress(module, module_base_iter->first);
   }
 }
 
-void create_debugger(string binary)
+addr_t get_func_load_addr(string func_name)
 {
-  main_obj = object::ObjectFile::createObjectFile(binary);
-  assert(main_obj->isObject() && main_obj->isELF() && "it is not object");
-  create_debugger(main_obj);
+  SBSymbolContextList symbolContextList = target.FindFunctions(name.c_str());
+  assert(symbolContextList.IsValid());
+  for(uint32_t i = 0; i < symbolContextList.GetSize(); ++i)
+  {
+    SBSymbolContext symbolContext = symbolContextList.GetContextAtIndex(i);
+    SBFunction function = symbolContext.GetFunction();
+    SBSymbol func_sym = symbolContext.GetSymbol();
+    if(function.IsValid())
+    {
+      cerr << "judge func: " << (function.GetName()==NULL?"noname":function.GetName()) << " / " << (function.GetMangledName()==NULL?"noname":function.GetMangledName()) << endl;
+      if(!name.compare(function.GetName()) || !name.compare(function.GetMangledName()))
+      {
+        SBAddress addr = function.GetStartAddress();
+        assert(addr.IsValid());
+        return addr.GetLoadAddress(target);
+      }
+    }
+    else if(func_sym.IsValid())
+    {
+      cerr << "judge sym: " << (func_sym.GetName()==NULL?"noname":func_sym.GetName()) << " / " << (func_sym.GetMangledName()==NULL?"noname":func_sym.GetMangledName()) << endl;
+      SBStream description;
+      func_sym.GetDescription(description);
+      cout << description.GetData() << endl;
+      if(!name.compare(func_sym.GetName()) || !name.compare(func_sym.GetMangledName()))
+      {
+        SBAddress addr = func_sym.GetStartAddress();
+        assert(addr.IsValid());
+        if(!string(".text").compare(addr.GetSection().GetName()))
+          return addr.GetLoadAddress(target);
+      }
+    }
+  }
+  warnx("can't find func: %s", name.c_str());
+  return 0;
 }
+
+addr_t get_func_load_addr(string module_name, string func_name)
+{
+  SBModuleSpec module_spec;
+  module_spec.SetFileSpec(SBFileSpec(get_absolute(module_name.c_str())));
+  SBModule module = target.FindModule(module_spec);
+  assert(module.IsValid());
+  
+}
+
 
 string get_absolute(SBFileSpec file_spec)
 {
@@ -365,44 +365,6 @@ bool get_mem(uint64_t address, size_t size, void* buf)
 int get_pid()
 {
   return process.GetProcessID();
-}
-
-unsigned long get_addr(string name)
-{
-  SBSymbolContextList symbolContextList = target.FindFunctions(name.c_str());
-  assert(symbolContextList.IsValid());
-  for(uint32_t i = 0; i < symbolContextList.GetSize(); ++i)
-  {
-    SBSymbolContext symbolContext = symbolContextList.GetContextAtIndex(i);
-    SBFunction function = symbolContext.GetFunction();
-    SBSymbol func_sym = symbolContext.GetSymbol();
-    if(function.IsValid())
-    {
-      cerr << "judge func: " << (function.GetName()==NULL?"noname":function.GetName()) << " / " << (function.GetMangledName()==NULL?"noname":function.GetMangledName()) << endl;
-      if(!name.compare(function.GetName()) || !name.compare(function.GetMangledName()))
-      {
-        SBAddress addr = function.GetStartAddress();
-        assert(addr.IsValid());
-        return addr.GetLoadAddress(target);
-      }
-    }
-    else if(func_sym.IsValid())
-    {
-      cerr << "judge sym: " << (func_sym.GetName()==NULL?"noname":func_sym.GetName()) << " / " << (func_sym.GetMangledName()==NULL?"noname":func_sym.GetMangledName()) << endl;
-      SBStream description;
-      func_sym.GetDescription(description);
-      cout << description.GetData() << endl;
-      if(!name.compare(func_sym.GetName()) || !name.compare(func_sym.GetMangledName()))
-      {
-        SBAddress addr = func_sym.GetStartAddress();
-        assert(addr.IsValid());
-        if(!string(".text").compare(addr.GetSection().GetName()))
-          return addr.GetLoadAddress(target);
-      }
-    }
-  }
-  warnx("can't find func: %s", name.c_str());
-  return 0;
 }
 
 unsigned long get_unload_addr(unsigned long addr)

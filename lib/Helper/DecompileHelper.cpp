@@ -23,10 +23,9 @@ using namespace std;
 using namespace fracture;
 using namespace llvm;
 
-static map<unsigned long, Disassembler*> disassemblers;
-// static map<unsigned long, Decompiler*> decompilers;
+static map<addr_t, Disassembler*> disassemblers;
 static MCDirector* mcd;
-Module* module;
+Module* main_module;
 
 class DecompileInited {
 public:
@@ -48,9 +47,9 @@ static void init_module()
   const TargetMachine* TM = mcd->getTargetMachine();
   LLVMContext* context = mcd->getContext();
   
-  module = new Module("tested_module", *context);  
-  module->setTargetTriple(TM->getTargetTriple());
-  module->setDataLayout(TM->getDataLayout()->getStringRepresentation());
+  main_module = new Module("tested_module", *context);  
+  main_module->setTargetTriple(TM->getTargetTriple());
+  main_module->setDataLayout(TM->getDataLayout()->getStringRepresentation());
 
   const MCRegisterInfo* MRI = mcd->getMCRegisterInfo();
   for(unsigned i = 1; i < MRI->getNumRegs(); ++i)
@@ -58,37 +57,34 @@ static void init_module()
     MCSuperRegIterator super_reg_iter(i, MRI);
     if(!super_reg_iter.isValid())
     {
-      new GlobalVariable(*module, Type::getIntNTy(*context, mcd->getRegType(i).getSizeInBits()), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::get(Type::getIntNTy(*context, mcd->getRegType(i).getSizeInBits()), 0), MRI->getName(i));
+      new GlobalVariable(*main_module, Type::getIntNTy(*context, mcd->getRegType(i).getSizeInBits()), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::get(Type::getIntNTy(*context, mcd->getRegType(i).getSizeInBits()), 0), MRI->getName(i));
     }
   }
 
-  new GlobalVariable(*module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "OF");
-  new GlobalVariable(*module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "SF");
-  new GlobalVariable(*module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "ZF");
-  new GlobalVariable(*module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "AF");
-  new GlobalVariable(*module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "PF");
-  new GlobalVariable(*module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "CF");
-  new GlobalVariable(*module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "TF");
-  new GlobalVariable(*module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "IF");
-  new GlobalVariable(*module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "DF");
-  new GlobalVariable(*module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "RF");
-  new GlobalVariable(*module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "NT");
+  new GlobalVariable(*main_module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "OF");
+  new GlobalVariable(*main_module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "SF");
+  new GlobalVariable(*main_module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "ZF");
+  new GlobalVariable(*main_module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "AF");
+  new GlobalVariable(*main_module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "PF");
+  new GlobalVariable(*main_module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "CF");
+  new GlobalVariable(*main_module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "TF");
+  new GlobalVariable(*main_module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "IF");
+  new GlobalVariable(*main_module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "DF");
+  new GlobalVariable(*main_module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "RF");
+  new GlobalVariable(*main_module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "NT");
 }
 
 Module* get_module(string binary)
 {
-  object::ObjectFile* obj = object::ObjectFile::createObjectFile(binary);
-  assert(obj->isObject() && obj->isELF() && "it is not object");
-
-  create_debugger(obj);
-
+  saib::debug::set_debug(string binary);
+  
   init_module();
-  return module;
+  return main_module;
 }
 
-Decompiler* get_decompiler(unsigned long addr)
+Decompiler* get_decompiler(addr_t addr)
 {
-  unsigned long base = get_base(addr);
+  addr_t base = get_load_base(addr);
   if(disassemblers.find(base)==disassemblers.end())
   {
     object::ObjectFile* obj = get_object(addr);
@@ -98,16 +94,16 @@ Decompiler* get_decompiler(unsigned long addr)
   return decompiler;
 }
 
-Function* get_first_func(unsigned long addr)
+Function* get_first_func(addr_t addr)
 {
   Decompiler* decompiler = get_decompiler(addr);
   Function* func = decompiler->decompileFunction(get_unload_addr(addr));
   assert(!func->empty());
   decompiler->getModule()->dump();
-  if(func->getParent()!=module)
+  if(func->getParent()!=main_module)
   {
     string error;
-    if(Linker::LinkModules(module, decompiler->getModule(), Linker::LinkerMode::PreserveSource, &error))
+    if(Linker::LinkModules(main_module, decompiler->getModule(), Linker::LinkerMode::PreserveSource, &error))
       errx(-1, "link module failed: %s", error.c_str());
   }
   func = module->getFunction(func->getName());
@@ -117,11 +113,11 @@ Function* get_first_func(unsigned long addr)
 
 Function* get_first_func(string func_name)
 {
-  unsigned long addr = get_addr(func_name);
+  addr_t addr = get_func_load_addr(func_name);
   return get_first_func(addr);
 }
 
-Module* get_module_with_function(unsigned long addr)
+Module* get_module_with_function(addr_t addr)
 {
   Decompiler* decompiler = get_decompiler(addr);
   Function* func = decompiler->decompileFunction(get_unload_addr(addr));
@@ -133,7 +129,7 @@ Module* get_module_with_function(unsigned long addr)
 
 Module* get_module_with_function(string func_name)
 {
-  unsigned long addr = get_addr(func_name);
+  addr_t addr = get_func_load_addr(func_name);
   if(!addr)
     return NULL;
   return get_module_with_function(addr);
