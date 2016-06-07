@@ -1,6 +1,8 @@
 
 #include "Helper/LLDBHelper.h"
 #include "Helper/ELFHelper.h"
+#include "Helper/ObjectFileHelper.h"
+#include "Helper/common.h"
 
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Object/ELFObjectFile.h"
@@ -52,14 +54,14 @@ public:
 };
 
 static LLDBInited inited;
-
+/*
 uint64_t get_entry(object::ObjectFile* obj)
 {
   auto elf_file = dyn_cast<object::ELF64LEObjectFile>(obj)->getELFFile();
   auto ehdr = elf_file->getHeader();
   return ehdr->e_entry;
 }
-
+*/
 void create_debugger(object::ObjectFile* obj)
 {
   main_obj = obj;
@@ -83,14 +85,14 @@ void create_debugger(string binary)
   assert(main_obj->isObject() && main_obj->isELF() && "it is not object");
   create_debugger(main_obj);
 }
-
+/*
 string get_absolute(string name)
 {
   if(name[0] == '/')
     return name;
   return string(get_current_dir_name()) + "/" + name;
 }
-
+*/
 string get_absolute(SBFileSpec file_spec)
 {
   return string(file_spec.GetDirectory())+"/"+file_spec.GetFilename();
@@ -164,13 +166,13 @@ object::ObjectFile* get_object(unsigned long addr)
   }
   errx(-1, "can't find module in get_object");
 }
-
+/*
 string omit_case(string name)
 {
   transform(name.begin(), name.end(), name.begin(), ::tolower);
   return name;
 }
-
+*/
 SBValue get_child(SBValue val, string reg_name)
 {
   if(!omit_case(val.GetName()).compare(omit_case(reg_name)))

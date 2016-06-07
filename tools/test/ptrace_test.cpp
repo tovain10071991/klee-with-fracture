@@ -1,4 +1,4 @@
-#include "Helper/LLDBHelper.h"
+#include "Helper/ptraceHelper.h"
 
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>
@@ -10,8 +10,6 @@
 using namespace boost;
 using namespace std;
 
-namespace {
-
 void handle_quit(const vector<string>& args);
 void handle_launch(const vector<string>& args);
 void handle_get_reg(const vector<string>& args);
@@ -19,9 +17,7 @@ void handle_get_func_by_name(const vector<string>& args);
 
 map<string, void(*)(const vector<string>&)> cmd_func_map = {
   {"q", handle_quit},
-  {"launch", handle_launch},
-  {"get_reg", handle_get_reg},
-  {"get_func_by_name", handle_get_func_by_name}
+  {"launch", handle_launch}
 };
 
 void print_prompt()
@@ -64,23 +60,5 @@ void handle_quit(const vector<string>& args)
 void handle_launch(const vector<string>& args)
 {
   assert(args.size()==1);
-  create_debugger(args[0]);
-}
-
-void handle_get_reg(const vector<string>& args)
-{
-  assert(args.size()==1);
-  ::uint64_t value;
-  if(!get_reg(args[0], value))
-    cerr << "invalid reg name" << endl;
-  cout << args[0] << ": 0x" << hex << value << endl;
-}
-
-void handle_get_func_by_name(const vector<string>& args)
-{
-  assert(args.size()==1);
-  ::uint64_t addr = get_addr(args[0]);
-  cout << args[0] << ": 0x" << hex << addr << endl;
-}
-
+  create_debugger_by_ptrace(args[0]);
 }
