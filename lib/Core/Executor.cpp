@@ -103,8 +103,9 @@
 #include <errno.h>
 #include <cxxabi.h>
 
-#include "Helper/LLDBHelper.h"
+// #include "Helper/LLDBHelper.h"
 #include "Helper/MapsHelper.h"
+#include "Helper/ptraceHelper.h"
 
 using namespace llvm;
 using namespace klee;

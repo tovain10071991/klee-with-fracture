@@ -6,18 +6,19 @@
 #include <iostream>
 #include <vector>
 #include <map>
+#include <string>
 
 using namespace boost;
 using namespace std;
 
 void handle_quit(const vector<string>& args);
 void handle_launch(const vector<string>& args);
-void handle_get_reg(const vector<string>& args);
-void handle_get_func_by_name(const vector<string>& args);
+void handle_get_mem(const vector<string>& args);
 
 map<string, void(*)(const vector<string>&)> cmd_func_map = {
   {"q", handle_quit},
-  {"launch", handle_launch}
+  {"launch", handle_launch},
+  {"get_mem", handle_get_mem}
 };
 
 void print_prompt()
@@ -61,4 +62,13 @@ void handle_launch(const vector<string>& args)
 {
   assert(args.size()==1);
   create_debugger_by_ptrace(args[0]);
+}
+
+void handle_get_mem(const vector<string>& args)
+{
+  assert(args.size()==1);
+  ::uint64_t addr = stoull(args[0]);
+  long data;
+  get_mem(addr, sizeof(long), &data);
+  cout << "0x" << hex << addr << ": 0x" << data << endl;
 }

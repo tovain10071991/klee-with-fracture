@@ -35,7 +35,7 @@
 #include <cassert>
 #include <sstream>
 
-#include "Helper/LLDBHelper.h"
+#include "Helper/ptraceHelper.h"
 
 using namespace llvm;
 using namespace klee;

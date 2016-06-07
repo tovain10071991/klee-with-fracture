@@ -1,15 +1,14 @@
 #include <string>
 #include <algorithm>
 
+#include <stdlib.h>
 #include <unistd.h>
 
 using namespace std;
 
 string get_absolute(string name)
 {
-  if(name[0] == '/')
-    return name;
-  return string(get_current_dir_name()) + "/" + name;
+  return canonicalize_file_name(name.c_str());
 }
 
 string omit_case(string name)

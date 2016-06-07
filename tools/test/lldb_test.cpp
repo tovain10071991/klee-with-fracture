@@ -1,4 +1,6 @@
 #include "Helper/LLDBHelper.h"
+#include "Helper/ptraceHelper.h"
+#include "Helper/DebugHelper.h"
 
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>
@@ -52,6 +54,7 @@ int main(int argc, char** argv)
     vector<string> strs = split_str(input);
     handle_cmd(strs);
   }
+  return 0;
 }
 
 void handle_quit(const vector<string>& args)
@@ -71,7 +74,8 @@ void handle_get_reg(const vector<string>& args)
 {
   assert(args.size()==1);
   ::uint64_t value;
-  if(!get_reg(args[0], value))
+  unsigned val_size;
+  if(!get_reg(args[0], &value, 8, val_size))
     cerr << "invalid reg name" << endl;
   cout << args[0] << ": 0x" << hex << value << endl;
 }

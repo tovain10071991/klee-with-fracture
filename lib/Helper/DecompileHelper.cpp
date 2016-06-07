@@ -1,5 +1,6 @@
 #include "Helper/DecompileHelper.h"
 #include "Helper/LLDBHelper.h"
+#include "Helper/DebugHelper.h"
 
 #include "CodeInv/Decompiler.h"
 #include "CodeInv/Disassembler.h"
@@ -48,7 +49,7 @@ static void init_module()
   const TargetMachine* TM = mcd->getTargetMachine();
   LLVMContext* context = mcd->getContext();
   
-  module = new Module("tested_module", *context);  
+  module = new Module("tested_module", *context);
   module->setTargetTriple(TM->getTargetTriple());
   module->setDataLayout(TM->getDataLayout()->getStringRepresentation());
 
@@ -77,10 +78,10 @@ static void init_module()
 
 Module* get_module(string binary)
 {
-  object::ObjectFile* obj = object::ObjectFile::createObjectFile(binary);
-  assert(obj->isObject() && obj->isELF() && "it is not object");
+  // object::ObjectFile* obj = object::ObjectFile::createObjectFile(binary);
+  // assert(obj->isObject() && obj->isELF() && "it is not object");
 
-  create_debugger(obj);
+  create_debugger(binary);
 
   init_module();
   return module;

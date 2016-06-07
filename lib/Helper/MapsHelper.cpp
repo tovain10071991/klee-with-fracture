@@ -1,5 +1,6 @@
 #include "Helper/MapsHelper.h"
 #include "Helper/LLDBHelper.h"
+#include "Helper/ptraceHelper.h"
 
 #include <vector>
 

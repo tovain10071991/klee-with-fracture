@@ -47,7 +47,7 @@ bool wait_assert(string msg="")
 
 pid_t create_child(string binary)
 {
-  int pid = fork();
+  pid = fork();
   if(pid==0)
   {
     ptrace_assert(PTRACE_TRACEME, 0, 0, 0, "PTRACE_TRACEME in create_child");
@@ -56,6 +56,7 @@ pid_t create_child(string binary)
   }
   else if(pid<0)
     err(errno, "fork in create_child");
+  wait_assert();
   return pid;
 }
 
@@ -104,16 +105,25 @@ long get_reg(string reg_name)
   return name_reg_map[reg_name];
 }
 
-void read_memory(addr_t addr, void* buf, size_t size)
+bool get_reg(std::string reg_name, void* buf, unsigned buf_size, unsigned& val_size)
+{
+  assert(buf_size = sizeof(long));
+  *(long*)buf = get_reg(reg_name);
+  val_size = sizeof(long);
+  return true;
+}
+
+bool get_mem(addr_t addr, size_t size, void* buf)
 {
   size_t ts = (size+sizeof(long))/sizeof(long);
   long* tmp = (long*)malloc(ts*sizeof(long));
   if(tmp==NULL)
     errx(-1, "malloc: fail to allocate tmp in readata()\n");
   for(size_t i=0;i<ts;i++)
-    *(tmp+i) = ptrace_assert(PTRACE_PEEKDATA, pid, (void*)(addr+sizeof(long)*i), 0, "read to tmp in read_memory");
+    *(tmp+i) = ptrace_assert(PTRACE_PEEKDATA, pid, (void*)(addr+sizeof(long)*i), 0, "read to tmp in get_mem");
   memcpy(buf, tmp, size);
   free(tmp);
+  return true;
 }
 
 static long breakpoint_bytes;
@@ -122,7 +132,7 @@ void set_breakpoint(addr_t addr)
 {
 	//设置断点
 	//将addr的头一个字节(第一个字的低字节)换成0xCC
-  read_memory(addr, &breakpoint_bytes, sizeof(long));
+  get_mem(addr, sizeof(long), &breakpoint_bytes);
   long temp = (breakpoint_bytes & 0xFFFFFFFFFFFFFF00) | 0xCC;
   ptrace_assert(PTRACE_POKETEXT, pid, (void*)addr, (void*)temp);
 }
@@ -135,7 +145,7 @@ void remove_breakpoint(addr_t addr)
   //软件断点会在断点的下一个字节停住,所以还要将RIP向前恢复一个字节
   regs.rip-=1;
   assert(addr == regs.rip);
-  printf("0x%llx\n", regs.rip);
+  // printf("0x%llx\n", regs.rip);
   ptrace_assert(PTRACE_SETREGS, pid, NULL, &regs);
   ptrace_assert(PTRACE_POKETEXT, pid, (void*)regs.rip, (void*)breakpoint_bytes);
 }
@@ -156,7 +166,7 @@ bool is_reach_syscall()
 {
   unsigned long long pc = get_reg("rip");
   uint8_t inst_bytes[2];
-  read_memory(pc-2, inst_bytes, 2);
+  get_mem(pc-2, 2, inst_bytes);
   if(inst_bytes[0] != 0xf || inst_bytes[1] != 5)
     return false;
   else
@@ -177,7 +187,7 @@ bool is_reach_start()
 {
   unsigned long long pc = get_reg("rip");
   uint8_t inst_bytes[1];
-  read_memory(pc-1, inst_bytes, 1);
+  get_mem(pc-1, 1, inst_bytes);
   if(inst_bytes[0] != 0xcc)
     return false;
   else
@@ -226,6 +236,11 @@ void start_child_set_tls(string binary)
 void create_debugger_by_ptrace(string binary)
 {
   pid = create_child(binary);
-  create_debugger(binary);
+  create_debugger_by_lldb(binary);
   start_child_set_tls(binary);
+}
+
+pid_t get_pid()
+{
+  return pid;
 }

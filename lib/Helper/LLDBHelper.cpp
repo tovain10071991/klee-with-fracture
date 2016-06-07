@@ -1,5 +1,6 @@
 
-#include "Helper/LLDBHelper.h"
+#include "Helper/ptraceHelper.h"
+#include "Helper/DebugHelper.h"
 #include "Helper/ELFHelper.h"
 #include "Helper/ObjectFileHelper.h"
 #include "Helper/common.h"
@@ -11,6 +12,7 @@
 #include "lldb/API/SBTarget.h"
 #include "lldb/API/SBProcess.h"
 #include "lldb/API/SBModule.h"
+#include "lldb/API/SBModuleSpec.h"
 #include "lldb/API/SBBreakpoint.h"
 #include "lldb/API/SBThread.h"
 #include "lldb/API/SBFrame.h"
@@ -40,7 +42,6 @@ using namespace llvm;
 
 static SBDebugger debugger;
 static SBTarget target;
-static SBProcess process;
 static object::ObjectFile* main_obj;
 
 class LLDBInited {
@@ -66,25 +67,32 @@ void create_debugger(object::ObjectFile* obj)
 {
   main_obj = obj;
   target = debugger.CreateTarget(obj->getFileName().data());
-  SBBreakpoint breakpoint_for_launch = target.BreakpointCreateByAddress(get_entry(obj));  
-  assert(breakpoint_for_launch.IsValid());
-  SBLaunchInfo launch_info(NULL);
-  SBError error;
-  process = target.Launch(launch_info, error);
-  assert(error.Success());
-  
-  SBBreakpoint breakpoint_for_main = target.BreakpointCreateByAddress(get_addr("main"));
-  assert(breakpoint_for_main.IsValid());
-  error = process.Continue();
-  assert(error.Success());
+  target.SetModuleLoadAddress(target.FindModule(target.GetExecutable()), 0);
 }
 
-void create_debugger(string binary)
+void create_debugger_by_lldb(string binary)
 {
   main_obj = object::ObjectFile::createObjectFile(binary);
   assert(main_obj->isObject() && main_obj->isELF() && "it is not object");
   create_debugger(main_obj);
 }
+
+void add_modules(map<addr_t, string> link_modules)
+{
+  for(auto modules_iter = link_modules.begin(); modules_iter != link_modules.end(); ++ modules_iter)
+  {
+    if(!modules_iter->second.size())
+      continue;
+    SBFileSpec file_spec(get_absolute(modules_iter->second).c_str());
+    SBModuleSpec module_spec;
+    module_spec.SetFileSpec(file_spec);
+    if(target.FindModule(file_spec).IsValid())
+      continue;
+    SBModule module = target.AddModule(module_spec);
+    target.SetModuleLoadAddress(module, modules_iter->first);
+  }
+}
+
 /*
 string get_absolute(string name)
 {
@@ -95,9 +103,9 @@ string get_absolute(string name)
 */
 string get_absolute(SBFileSpec file_spec)
 {
-  return string(file_spec.GetDirectory())+"/"+file_spec.GetFilename();
+  return get_absolute(string(file_spec.GetFilename()));
 }
-
+/*
 unsigned long get_base(string module_name)
 {
   if(module_name[0]!='/')
@@ -127,7 +135,7 @@ unsigned long get_base(string module_name)
   }
   errx(-1, "can't find module in get_base(name)");
 }
-
+*/
 unsigned long get_base(unsigned long addr)
 {
   for(unsigned i = 0, num = target.GetNumModules(); i < num; ++i)
@@ -187,7 +195,7 @@ SBValue get_child(SBValue val, string reg_name)
   }
   return child;
 }
-
+/*
 bool get_reg(string reg_name, SBData& data)
 {
   SBThread thread = process.GetSelectedThread();
@@ -329,7 +337,7 @@ int get_pid()
 {
   return process.GetProcessID();
 }
-
+*/
 unsigned long get_addr(string name)
 {
   SBSymbolContextList symbolContextList = target.FindFunctions(name.c_str());
