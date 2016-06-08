@@ -79,10 +79,12 @@ void Decompiler::initModule()
   Mod->getOrInsertGlobal("DF", Type::getInt1Ty(*Context));
   Mod->getOrInsertGlobal("NT", Type::getInt1Ty(*Context));
   Mod->getOrInsertGlobal("RF", Type::getInt1Ty(*Context));
+  Mod->getOrInsertGlobal("FS_BASE", Type::getInt64Ty(*Context));
+  Mod->getOrInsertGlobal("GS_BASE", Type::getInt64Ty(*Context));
   
   Mod->getOrInsertFunction("saib_collect_indirect", FunctionType::get(Type::getVoidTy(*Context), {Type::getInt64Ty(*Context)}, false));
   Mod->getOrInsertFunction("saib_syscall", FunctionType::get(Type::getInt64Ty(*Context), std::vector<Type*>(7, Type::getInt64Ty(*Context)), false));
-  Mod->getOrInsertFunction("saib_addressing", FunctionType::get(Type::getInt64Ty(*Context), std::vector<Type*>({Type::getInt16Ty(*Context), Type::getInt64Ty(*Context), Type::getInt64Ty(*Context), Type::getInt64Ty(*Context), Type::getInt64Ty(*Context)}), false));
+  // Mod->getOrInsertFunction("saib_addressing", FunctionType::get(Type::getInt64Ty(*Context), std::vector<Type*>({Type::getInt16Ty(*Context), Type::getInt64Ty(*Context), Type::getInt64Ty(*Context), Type::getInt64Ty(*Context), Type::getInt64Ty(*Context)}), false));
 }
 
 void Decompiler::decompile(unsigned long Address) {

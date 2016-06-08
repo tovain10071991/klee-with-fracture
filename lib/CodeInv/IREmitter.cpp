@@ -249,11 +249,10 @@ Value* IREmitter::get_pointer_val(BasicBlock* BB, unsigned base_reg, int64_t sca
   Value* scale_val = ConstantInt::get(Type::getInt64Ty(*context), scale);
   Value* idx_val = idx_reg==X86::NoRegister ? ConstantInt::get(Type::getInt64Ty(*context), 0) : get_reg_val(idx_reg);
   Value* offset_val = ConstantInt::get(Type::getInt64Ty(*context), offset);
-  if(seg_reg != X86::NoRegister)
-  {
-    std::vector<Value*> args = {seg_val, base_val, scale_val, idx_val, offset_val};
-    return IRB->CreateCall(BB->getParent()->getParent()->getFunction("saib_addressing"), args);
-  }
+  if(seg_reg == X86::FS)
+    seg_val = get_reg_val("FS_BASE");
+  else if(seg_reg == X86::GS)
+    seg_val = get_reg_val("GS_BASE");
   else
     return IRB->CreateAdd(base_val, IRB->CreateAdd(offset_val, IRB->CreateMul(idx_val, scale_val)));
 }

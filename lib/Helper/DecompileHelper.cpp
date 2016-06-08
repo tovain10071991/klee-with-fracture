@@ -74,6 +74,8 @@ static void init_module()
   new GlobalVariable(*module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "DF");
   new GlobalVariable(*module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "RF");
   new GlobalVariable(*module, Type::getInt1Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::getFalse(*context), "NT");
+  new GlobalVariable(*module, Type::getInt64Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::get(Type::getInt64Ty(*context), 0), "FS_BASE");
+  new GlobalVariable(*module, Type::getInt64Ty(*context), false, GlobalVariable::LinkageTypes::ExternalLinkage, ConstantInt::get(Type::getInt64Ty(*context), 0), "GS_BASE");
 }
 
 Module* get_module(string binary)
