@@ -14,16 +14,18 @@ using namespace std;
 void handle_quit(const vector<string>& args);
 void handle_launch(const vector<string>& args);
 void handle_get_mem(const vector<string>& args);
+void handle_get_reg(const vector<string>& args);
 
 map<string, void(*)(const vector<string>&)> cmd_func_map = {
   {"q", handle_quit},
   {"launch", handle_launch},
-  {"get_mem", handle_get_mem}
+  {"get_mem", handle_get_mem},
+  {"get_reg", handle_get_reg}
 };
 
 void print_prompt()
 {
-  cout << "(lldb test) ";
+  cout << "(ptrace test) ";
 }
 
 vector<string> split_str(string str)
@@ -71,4 +73,14 @@ void handle_get_mem(const vector<string>& args)
   long data;
   get_mem(addr, sizeof(long), &data);
   cout << "0x" << hex << addr << ": 0x" << data << endl;
+}
+
+void handle_get_reg(const vector<string>& args)
+{
+  assert(args.size()==1);
+  ::uint64_t value;
+  unsigned val_size;
+  if(!get_reg(args[0], &value, 8, val_size))
+    cerr << "invalid reg name" << endl;
+  cout << args[0] << ": 0x" << hex << value << endl;
 }

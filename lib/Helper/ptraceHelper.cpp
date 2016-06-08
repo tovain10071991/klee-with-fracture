@@ -107,9 +107,44 @@ long get_reg(string reg_name)
 
 bool get_reg(std::string reg_name, void* buf, unsigned buf_size, unsigned& val_size)
 {
-  assert(buf_size = sizeof(long));
-  *(long*)buf = get_reg(reg_name);
+  struct user_regs_struct regs;
+  ptrace_assert(PTRACE_GETREGS, pid, 0, &regs);
+  map<string, long> name_reg_map = {
+   {"r15", regs.r15},
+   {"r14", regs.r14},
+   {"r13", regs.r13},
+   {"r12", regs.r12},
+   {"rbp", regs.rbp},
+   {"rbx", regs.rbx},
+   {"r11", regs.r11},
+   {"r10", regs.r10},
+   {"r9", regs.r9},
+   {"r8", regs.r8},
+   {"rax", regs.rax},
+   {"rcx", regs.rcx},
+   {"rdx", regs.rdx},
+   {"rsi", regs.rsi},
+   {"rdi", regs.rdi},
+   {"orig_rax", regs.orig_rax},
+   {"rip", regs.rip},
+   {"cs", regs.cs},
+   {"eflags", regs.eflags},
+   {"rsp", regs.rsp},
+   {"ss", regs.ss},
+   {"fs_base", regs.fs_base},
+   {"gs_base", regs.gs_base},
+   {"ds", regs.ds},
+   {"es", regs.es},
+   {"fs", regs.fs},
+   {"gs", regs.gs}};
+  if(name_reg_map.find(omit_case(reg_name))==name_reg_map.end())
+  {
+    warnx("can't find reg: %s", reg_name.c_str());
+    return false;
+  }
+  *(long*)buf = name_reg_map[omit_case(reg_name)];
   val_size = sizeof(long);
+  warnx("get reg successfully: %s = 0x%lx", reg_name.c_str(), *(long*)buf);
   return true;
 }
 

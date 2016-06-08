@@ -5,6 +5,7 @@
 
 #include <string>
 #include <map>
+#include <iostream>
 
 #include <unistd.h>
 #include <link.h>
@@ -47,19 +48,20 @@ unsigned long get_base(string module_name)
     return 0;
   //从主模块获取链接信息
   struct link_map* lm_ptr;
-  get_mem(get_got_plt_addr(main_binary)+8, 8, &lm_ptr);  
+  get_mem(get_got_plt_addr(main_binary)+8, 8, &lm_ptr);
   while(lm_ptr!=NULL)
   {
     struct link_map lm;
     get_mem((uint64_t)lm_ptr, sizeof(struct link_map), &lm);
-    char name[200];
+    char name[200] = "";
     get_mem((addr_t)lm.l_name, 200, name);
     assert(string(name).size()<200);
-    if(!module_name.compare(name))
+    cerr << "in get_base: " << name << endl;
+    if(string(name).size() && !get_absolute(module_name).compare(get_absolute(name)))
     {
       return lm.l_addr;
     }
     lm_ptr=lm.l_next;
   }
-  errx(-1, "can't find module in get_base(name)");
+  errx(-1, "can't find module in get_base(name): %s", module_name.c_str());
 }
