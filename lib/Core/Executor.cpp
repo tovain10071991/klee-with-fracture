@@ -1169,6 +1169,12 @@ void Executor::executeCall(ExecutionState &state,
                            Function *f,
                            std::vector< ref<Expr> > &arguments) {
   Instruction *i = ki->inst;
+  if (specialFunctionHandler->handle(state, f, ki, arguments))
+  {
+    if (InvokeInst *ii = dyn_cast<InvokeInst>(i))
+      transferToBasicBlock(ii->getNormalDest(), i->getParent(), state);
+    return;
+  }
   if (f && f->isDeclaration() && f->getIntrinsicID()==Intrinsic::not_intrinsic)
   {
     Function* func = kmodule->get_func(f->getName().str());

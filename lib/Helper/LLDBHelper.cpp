@@ -19,6 +19,10 @@
 #include "lldb/API/SBValueList.h"
 #include "lldb/API/SBValue.h"
 #include "lldb/API/SBStream.h"
+#include "lldb/API/SBEvent.h"
+#include "lldb/API/SBBroadcaster.h"
+#include "lldb/API/SBListener.h"
+#include "lldb/API/SBModuleSpec.h"
 
 #include <link.h>
 #include <err.h>
@@ -32,6 +36,7 @@
 #include <algorithm>
 #include <map>
 #include <stdio.h>
+#include <string.h>
 
 using namespace std;
 using namespace lldb;

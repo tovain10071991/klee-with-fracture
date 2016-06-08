@@ -1729,10 +1729,10 @@ define_visit(RET)
 
 define_visit(NOOP)
 {
-  IRB->SetInsertPoint(BB);
-  LLVMContext* context = Dec->getContext();
+  // IRB->SetInsertPoint(BB);
+  // LLVMContext* context = Dec->getContext();
 
-  IRB->CreateCall(Intrinsic::getDeclaration(Dec->getModule(), Intrinsic::donothing, {Type::getVoidTy(*context)}));
+  // IRB->CreateCall(Intrinsic::getDeclaration(Dec->getModule(), Intrinsic::donothing, {Type::getVoidTy(*context)}));
 }
 
 define_visit(SYSCALL)

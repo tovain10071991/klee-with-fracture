@@ -30,6 +30,8 @@
 #endif
 #include "llvm/ADT/Twine.h"
 
+#include <sys/syscall.h>
+#include <err.h>
 #include <errno.h>
 #include <string>
 
@@ -137,6 +139,7 @@ static SpecialFunctionHandler::HandlerInfo handlerInfo[] = {
   add("__ubsan_handle_divrem_overflow", handleDivRemOverflow, false),
   
   add("saib_collect_indirect", handleSaibCollectIndirect, false),
+  add("saib_syscall", handleSaibSyscall, true),
 
 #undef addDNR
 #undef add  
@@ -218,8 +221,21 @@ bool SpecialFunctionHandler::handle(ExecutionState &state,
                                     Function *f,
                                     KInstruction *target,
                                     std::vector< ref<Expr> > &arguments) {
-  handlers_ty::iterator it = handlers.find(f);
-  if (it != handlers.end()) {    
+  handlers_ty::iterator it = handlers.begin();
+  for(; it != handlers.end(); ++it)
+  {
+    if(it->first->getName().equals(f->getName()))
+    break;
+  }
+  if(it != handlers.end())
+  {
+    auto iter = it;
+    for(++iter; iter != handlers.end(); ++iter)
+      assert(!iter->first->getName().equals(f->getName()));
+  }
+  if (it == handlers.end())
+    it = handlers.find(f);
+  if (it != handlers.end()) {
     Handler h = it->second.first;
     bool hasReturnValue = it->second.second;
      // FIXME: Check this... add test?
@@ -799,4 +815,25 @@ void SpecialFunctionHandler::handleSaibCollectIndirect(ExecutionState &state,
   assert(!func->empty());  
   std::vector< ref<Expr> > args;
   executor.executeCall(state, target, func, args);
+}
+
+void SpecialFunctionHandler::handleSaibSyscall(ExecutionState &state,
+                                               KInstruction *target,
+                                               std::vector<ref<Expr> > &arguments) {
+  ConstantExpr* sys_num = dyn_cast<ConstantExpr>(arguments[0]);
+  assert(sys_num);
+  switch(sys_num->getZExtValue()) {
+    case SYS_getpid:
+    {
+      ref<Expr> e(ConstantExpr::create(0, 64));
+      e->from_extern = true;
+      executor.bindLocal(target, state, e);
+      break;
+    }
+    default:
+    {
+      errx(-1, "unknown syscall num: %lu", sys_num->getZExtValue());
+      break;
+    }
+  }
 }
