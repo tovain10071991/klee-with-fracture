@@ -263,6 +263,13 @@ void start_child_set_tls(string binary)
     {
       unsigned long long pc = get_reg("rip");
       remove_breakpoint(pc-1);
+      if(!tls_base)
+      {
+        if(tls_use_fs)
+          assert((addr_t)get_reg("fs_base")==tls_base);
+        else
+          assert((addr_t)get_reg("gs_base")==tls_base);
+      }
       return;
     }
   }
