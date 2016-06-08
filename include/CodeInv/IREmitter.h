@@ -94,6 +94,7 @@ protected:
   declare_visit(SHR64ri);
 
   declare_visit(AND64ri8);
+  declare_visit(AND32i32);
   declare_visit(OR64ri8);
   declare_visit(XOR32r);
 
@@ -106,6 +107,7 @@ protected:
   declare_visit(CMP32mi8);
   declare_visit(CMP64mi8);
   declare_visit(CMP8mi);
+  declare_visit(CMP64rm);
 
   declare_visit(TEST32rr);
   declare_visit(TEST64rr);

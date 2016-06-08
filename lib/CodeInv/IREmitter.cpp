@@ -77,6 +77,7 @@ void IREmitter::initDispacher()
   visitDispachers[X86::SHR64ri] = &IREmitter::visitSHR64ri;
   
   visitDispachers[X86::AND64ri8] = &IREmitter::visitAND64ri8;
+  visitDispachers[X86::AND32i32] = &IREmitter::visitAND32i32;
   visitDispachers[X86::OR64ri8] = &IREmitter::visitOR64ri8;
   visitDispachers[X86::XOR32rr] = &IREmitter::visitXOR32r;
   
@@ -89,6 +90,7 @@ void IREmitter::initDispacher()
   visitDispachers[X86::CMP32mi8] = &IREmitter::visitCMP32mi8;
   visitDispachers[X86::CMP64mi8] = &IREmitter::visitCMP64mi8;
   visitDispachers[X86::CMP8mi] = &IREmitter::visitCMP8mi;
+  visitDispachers[X86::CMP64rm] = &IREmitter::visitCMP64rm;
   
   visitDispachers[X86::TEST32rr] = &IREmitter::visitTEST32rr;
   visitDispachers[X86::TEST64rr] = &IREmitter::visitTEST64rr;
@@ -1007,6 +1009,39 @@ define_visit(AND64ri8)
   IRB->CreateStore(ConstantInt::getFalse(*context), Dec->getModule()->getGlobalVariable("OF"));
 }
 
+define_visit(AND32i32)
+{
+  assert(I->getNumOperands()==4);
+  MachineOperand& lhs_opr = I->getOperand(3);
+  assert(lhs_opr.isReg());
+  MachineOperand& rhs_opr = I->getOperand(0);
+  assert(rhs_opr.isImm());
+  MachineOperand& des_opr = I->getOperand(1);
+  assert(des_opr.isReg() && des_opr.getReg()==lhs_opr.getReg());
+  assert(I->getOperand(2).isReg() && I->getOperand(2).getReg()==X86::EFLAGS);
+  
+  IRB->SetInsertPoint(BB);
+  LLVMContext* context = Dec->getContext();
+
+  //read lhs
+  Value* lhs_val = get_reg_val(lhs_opr.getReg());
+
+  //read rhs
+  Constant* rhs_val = get_imm_val(rhs_opr.getImm(), 32, 32);
+
+  // compute
+  Value* result = IRB->CreateAnd(lhs_val, rhs_val);
+
+  // writeback
+  store_reg_val(des_opr.getReg(), result);
+
+  store_PF_val(I->getOpcode(), lhs_val, rhs_val, result);
+  store_ZF_val(I->getOpcode(), lhs_val, rhs_val, result);
+  store_SF_val(I->getOpcode(), lhs_val, rhs_val, result);
+  IRB->CreateStore(ConstantInt::getFalse(*context), Dec->getModule()->getGlobalVariable("CF"));
+  IRB->CreateStore(ConstantInt::getFalse(*context), Dec->getModule()->getGlobalVariable("OF"));
+}
+
 define_visit(OR64ri8)
 {
   assert(I->getNumOperands()==4);
@@ -1318,6 +1353,42 @@ define_visit(CMP8mi)
 
   //read rhs
   Value* rhs_val = get_imm_val(rhs_opr.getImm(), 8, 8);
+
+  // compute
+  Value* result = IRB->CreateSub(lhs_val, rhs_val);
+
+  store_AF_val(I->getOpcode(), lhs_val, rhs_val, result);
+  store_PF_val(I->getOpcode(), lhs_val, rhs_val, result);
+  store_ZF_val(I->getOpcode(), lhs_val, rhs_val, result);
+  store_SF_val(I->getOpcode(), lhs_val, rhs_val, result);
+  store_CF_val(I->getOpcode(), lhs_val, rhs_val, result);
+  store_OF_val(I->getOpcode(), lhs_val, rhs_val, result);
+}
+
+define_visit(CMP64rm)
+{
+  assert(I->getNumOperands()==7);
+  MachineOperand& lhs_opr = I->getOperand(0);
+  assert(lhs_opr.isReg());
+  MachineOperand& base_opr = I->getOperand(1);
+  assert(base_opr.isReg());
+  MachineOperand& scale_opr = I->getOperand(2);
+  assert(scale_opr.isImm());
+  MachineOperand& idx_opr = I->getOperand(3);
+  assert(idx_opr.isReg());
+  MachineOperand& off_opr = I->getOperand(4);
+  assert(off_opr.isImm());
+  MachineOperand& seg_opr = I->getOperand(5);
+  assert(seg_opr.isReg());
+  assert(I->getOperand(6).isReg() && I->getOperand(6).getReg()==X86::EFLAGS);
+
+  IRB->SetInsertPoint(BB);
+
+  // read lhs
+  Value* lhs_val = get_reg_val(lhs_opr.getReg());
+
+  //read rhs
+  Value* rhs_val = get_mem_val(BB, base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 64);
 
   // compute
   Value* result = IRB->CreateSub(lhs_val, rhs_val);
