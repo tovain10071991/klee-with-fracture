@@ -4,6 +4,7 @@
 
 #include <string>
 #include <map>
+#include <vector>
 
 #include <link.h>
 #include <sys/ptrace.h>
@@ -73,33 +74,34 @@ long get_reg(string reg_name)
   struct user_regs_struct regs;
   ptrace_assert(PTRACE_GETREGS, pid, 0, &regs);
   map<string, long> name_reg_map = {
-   {"r15", regs.r15},
-   {"r14", regs.r14},
-   {"r13", regs.r13},
-   {"r12", regs.r12},
-   {"rbp", regs.rbp},
-   {"rbx", regs.rbx},
-   {"r11", regs.r11},
-   {"r10", regs.r10},
-   {"r9", regs.r9},
-   {"r8", regs.r8},
-   {"rax", regs.rax},
-   {"rcx", regs.rcx},
-   {"rdx", regs.rdx},
-   {"rsi", regs.rsi},
-   {"rdi", regs.rdi},
-   {"orig_rax", regs.orig_rax},
-   {"rip", regs.rip},
-   {"cs", regs.cs},
-   {"eflags", regs.eflags},
-   {"rsp", regs.rsp},
-   {"ss", regs.ss},
-   {"fs_base", regs.fs_base},
-   {"gs_base", regs.gs_base},
-   {"ds", regs.ds},
-   {"es", regs.es},
-   {"fs", regs.fs},
-   {"gs", regs.gs}};
+    {"r15", regs.r15},
+    {"r14", regs.r14},
+    {"r13", regs.r13},
+    {"r12", regs.r12},
+    {"rbp", regs.rbp},
+    {"rbx", regs.rbx},
+    {"r11", regs.r11},
+    {"r10", regs.r10},
+    {"r9", regs.r9},
+    {"r8", regs.r8},
+    {"rax", regs.rax},
+    {"rcx", regs.rcx},
+    {"rdx", regs.rdx},
+    {"rsi", regs.rsi},
+    {"rdi", regs.rdi},
+    {"orig_rax", regs.orig_rax},
+    {"rip", regs.rip},
+    {"cs", regs.cs},
+    {"eflags", regs.eflags},
+    {"rsp", regs.rsp},
+    {"ss", regs.ss},
+    {"fs_base", regs.fs_base},
+    {"gs_base", regs.gs_base},
+    {"ds", regs.ds},
+    {"es", regs.es},
+    {"fs", regs.fs},
+    {"gs", regs.gs},
+  };
   if(name_reg_map.find(omit_case(reg_name))==name_reg_map.end())
     errx(-1, "can't find reg: %s", reg_name.c_str());
   return name_reg_map[reg_name];
@@ -110,42 +112,145 @@ bool get_reg(std::string reg_name, void* buf, unsigned buf_size, unsigned& val_s
   struct user_regs_struct regs;
   ptrace_assert(PTRACE_GETREGS, pid, 0, &regs);
   map<string, long> name_reg_map = {
-   {"r15", regs.r15},
-   {"r14", regs.r14},
-   {"r13", regs.r13},
-   {"r12", regs.r12},
-   {"rbp", regs.rbp},
-   {"rbx", regs.rbx},
-   {"r11", regs.r11},
-   {"r10", regs.r10},
-   {"r9", regs.r9},
-   {"r8", regs.r8},
-   {"rax", regs.rax},
-   {"rcx", regs.rcx},
-   {"rdx", regs.rdx},
-   {"rsi", regs.rsi},
-   {"rdi", regs.rdi},
-   {"orig_rax", regs.orig_rax},
-   {"rip", regs.rip},
-   {"cs", regs.cs},
-   {"eflags", regs.eflags},
-   {"rsp", regs.rsp},
-   {"ss", regs.ss},
-   {"fs_base", regs.fs_base},
-   {"gs_base", regs.gs_base},
-   {"ds", regs.ds},
-   {"es", regs.es},
-   {"fs", regs.fs},
-   {"gs", regs.gs}};
-  if(name_reg_map.find(omit_case(reg_name))==name_reg_map.end())
+    {"r15", regs.r15},
+    {"r14", regs.r14},
+    {"r13", regs.r13},
+    {"r12", regs.r12},
+    {"rbp", regs.rbp},
+    {"rbx", regs.rbx},
+    {"r11", regs.r11},
+    {"r10", regs.r10},
+    {"r9", regs.r9},
+    {"r8", regs.r8},
+    {"rax", regs.rax},
+    {"rcx", regs.rcx},
+    {"rdx", regs.rdx},
+    {"rsi", regs.rsi},
+    {"rdi", regs.rdi},
+    {"orig_rax", regs.orig_rax},
+    {"rip", regs.rip},
+    {"cs", regs.cs},
+    {"eflags", regs.eflags},
+    {"rsp", regs.rsp},
+    {"ss", regs.ss},
+    {"fs_base", regs.fs_base},
+    {"gs_base", regs.gs_base},
+    {"ds", regs.ds},
+    {"es", regs.es},
+    {"fs", regs.fs},
+    {"gs", regs.gs},
+  };
+  map<string, long> name_flag_map = {
+    {"cf", 1 & (regs.eflags >> 0)},
+    {"pf", 1 & (regs.eflags >> 2)},
+    {"af", 1 & (regs.eflags >> 4)},
+    {"zf", 1 & (regs.eflags >> 6)},
+    {"sf", 1 & (regs.eflags >> 7)},
+    {"tf", 1 & (regs.eflags >> 8)},
+    {"if", 1 & (regs.eflags >> 9)},
+    {"df", 1 & (regs.eflags >> 10)},
+    {"of", 1 & (regs.eflags >> 11)},
+    {"nt", 1 & (regs.eflags >> 14)},
+    {"rf", 1 & (regs.eflags >> 16)},
+  };
+  vector<long> name_xmm_space_vector = {
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[0]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[2]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[4]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[6]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[8]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[10]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[12]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[14]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[16]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[18]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[20]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[22]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[24]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[26]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[28]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[30]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[32]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[34]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[36]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[38]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[40]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[42]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[44]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[46]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[48]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[50]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[52]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[54]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[56]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[58]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[60]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.xmm_space[62]), 0),
+  };
+  vector<long> name_st_space_vector = {
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.st_space[0]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.st_space[2]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.st_space[4]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.st_space[6]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.st_space[8]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.st_space[10]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.st_space[12]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.st_space[14]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.st_space[16]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.st_space[18]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.st_space[20]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.st_space[22]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.st_space[24]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.st_space[26]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.st_space[28]), 0),
+    ptrace_assert(PTRACE_PEEKUSER, pid, (void*)offsetof(struct user, i387.st_space[30]), 0),
+  };
+
+  if(name_reg_map.find(omit_case(reg_name))!=name_reg_map.end())
+  {
+    *(long*)buf = name_reg_map[omit_case(reg_name)];
+    val_size = sizeof(long);
+    warnx("get reg successfully: %s = 0x%lx", reg_name.c_str(), *(long*)buf);
+    return true;
+  }
+  else if(name_flag_map.find(omit_case(reg_name))!=name_flag_map.end())
+  {
+    *(long*)buf = name_flag_map[omit_case(reg_name)];
+    val_size = 1;
+    warnx("get flag successfully: %s = 0x%lx", reg_name.c_str(), *(long*)buf);
+    return true;
+  }
+  else if(!omit_case(reg_name).substr(0, 3).compare("zmm"))
+  {
+    int idx = stoi(reg_name.substr(3));
+    if(idx>=16)
+    {
+      warnx("can't find reg: %s", reg_name.c_str());
+      return false;
+    }
+    *((long*)buf + 0) = name_xmm_space_vector[idx*2];
+    warnx("get xmm_space successfully: %s:%d = 0x%lx", reg_name.c_str(), 0, *((long*)buf + 0));
+    *((long*)buf + 1) = name_xmm_space_vector[idx*2+1];
+    warnx("get xmm_space successfully: %s:%d = 0x%lx", reg_name.c_str(), 1, *((long*)buf + 1));
+    val_size = 64;
+    return true;
+  }
+  else if(!omit_case(reg_name).substr(0, 2).compare("st"))
+  {
+    int idx = stoi(reg_name.substr(2));
+    assert(idx<8);
+    *((long*)buf + 0) = name_st_space_vector[idx*2];
+    warnx("get st_space successfully: %s:%d = 0x%lx", reg_name.c_str(), 0, *((long*)buf + 0));
+    *((long*)buf + 1) = name_st_space_vector[idx*2+1];
+    warnx("get st_space successfully: %s:%d = 0x%lx", reg_name.c_str(), 1, *((long*)buf + 1));
+    val_size = 10;
+    return true;
+  }
+  else
   {
     warnx("can't find reg: %s", reg_name.c_str());
     return false;
   }
-  *(long*)buf = name_reg_map[omit_case(reg_name)];
-  val_size = sizeof(long);
-  warnx("get reg successfully: %s = 0x%lx", reg_name.c_str(), *(long*)buf);
-  return true;
 }
 
 bool get_mem(addr_t addr, size_t size, void* buf)
