@@ -46,7 +46,7 @@ Disassembler::Disassembler(MCDirector *NewMC, object::ObjectFile *NewExecutable,
     MC->getMCObjectFileInfo());
   // Initialize the GCMI
   GMI = new GCModuleInfo();
-
+/*
   error_code sym_ec;
   for(auto sym_iter = Executable->begin_symbols(), sym_end = Executable->end_symbols(); !sym_ec && sym_iter != sym_end; sym_iter = sym_iter.increment(sym_ec))
   {
@@ -74,7 +74,7 @@ Disassembler::Disassembler(MCDirector *NewMC, object::ObjectFile *NewExecutable,
     outs().write_hex(sym_addr);
     outs() << "\n";
     getOrCreateFunction(sym_addr);
-  }
+  }*/
 }
 
 Disassembler::~Disassembler() {
