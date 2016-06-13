@@ -81,9 +81,13 @@ protected:
   declare_visit(POP64r);
   declare_visit(LEAVE64);
 
-  declare_visit(ADD64r);
+  void ADDr(BasicBlock *BB, MachineInstr* I, unsigned init_size, unsigned final_size);
+  declare_visit(ADD32rr);
+  declare_visit(ADD64rr);
   declare_visit(ADD32ri8);
   declare_visit(ADD64ri8);
+  declare_visit(ADD64ri32);
+  declare_visit(ADD64i32);
 
   declare_visit(SUB64i32);
   declare_visit(SUB64ri8);
@@ -109,15 +113,30 @@ protected:
   declare_visit(CMP8mi);
   declare_visit(CMP64rm);
 
+  void Testrr(BasicBlock *BB, MachineInstr* I);
   declare_visit(TEST32rr);
   declare_visit(TEST64rr);
 
   declare_visit(JMP64r);
   declare_visit(JMP);
+  
+  void Jcc(BasicBlock *BB, MachineInstr* I, Value* cond_val, int64_t off);
   declare_visit(JA_1);
   declare_visit(JAE_1);
+  declare_visit(JBE_1);
+  declare_visit(JB_1);
   declare_visit(JE_1);
   declare_visit(JNE_1);
+  declare_visit(JG_1);
+  declare_visit(JGE_1);
+  declare_visit(JL_1);
+  declare_visit(JLE_1);
+  declare_visit(JNO_1);
+  declare_visit(JNP_1);
+  declare_visit(JNS_1);
+  declare_visit(JO_1);
+  declare_visit(JP_1);
+  declare_visit(JS_1);
 
   declare_visit(CALL64pcrel32);
   declare_visit(CALL64r);
@@ -166,6 +185,9 @@ protected:
   declare_get_flag_val(OF);
 
 };
+
+#define define_visit(name) \
+void IREmitter::visit##name(BasicBlock *BB, MachineInstr* I)
 
 } // end namespace fracture
 
