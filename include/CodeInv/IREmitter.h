@@ -65,29 +65,14 @@ protected:
 #define declare_visit(name) \
   void visit##name(BasicBlock *BB, MachineInstr* I)
 
-  declare_visit(MOV32r);
-  declare_visit(MOV32rm);
-  declare_visit(MOV64r);
-  declare_visit(MOV64ri32);
-  declare_visit(MOV8m);
-  declare_visit(MOV32m);
-  declare_visit(MOV64m);
-  declare_visit(MOV64mi32);
-  declare_visit(MOV64rm);
-
-  declare_visit(LEA64r);
+  #include "../lib/CodeInv/MOV/MOV_declare.inc"
+  #include "../lib/CodeInv/LEA/LEA_declare.inc"
 
   declare_visit(PUSH64r);
   declare_visit(POP64r);
   declare_visit(LEAVE64);
 
-  void ADDr(BasicBlock *BB, MachineInstr* I, unsigned init_size, unsigned final_size);
-  declare_visit(ADD32rr);
-  declare_visit(ADD64rr);
-  declare_visit(ADD32ri8);
-  declare_visit(ADD64ri8);
-  declare_visit(ADD64ri32);
-  declare_visit(ADD64i32);
+  #include "../lib/CodeInv/ADD/ADD_declare.inc"
 
   declare_visit(SUB64i32);
   declare_visit(SUB64ri32);
@@ -114,30 +99,12 @@ protected:
   declare_visit(CMP8mi);
   declare_visit(CMP64rm);
 
-  void Testrr(BasicBlock *BB, MachineInstr* I);
-  declare_visit(TEST32rr);
-  declare_visit(TEST64rr);
+  #include "../lib/CodeInv/TEST/TEST_declare.inc"
 
   declare_visit(JMP64r);
   declare_visit(JMP);
   
-  void Jcc(BasicBlock *BB, MachineInstr* I, Value* cond_val, int64_t off);
-  declare_visit(JA_1);
-  declare_visit(JAE_1);
-  declare_visit(JBE_1);
-  declare_visit(JB_1);
-  declare_visit(JE_1);
-  declare_visit(JNE_1);
-  declare_visit(JG_1);
-  declare_visit(JGE_1);
-  declare_visit(JL_1);
-  declare_visit(JLE_1);
-  declare_visit(JNO_1);
-  declare_visit(JNP_1);
-  declare_visit(JNS_1);
-  declare_visit(JO_1);
-  declare_visit(JP_1);
-  declare_visit(JS_1);
+  #include "../lib/CodeInv/Jcc/Jcc_declare.inc"
 
   declare_visit(CALL64pcrel32);
   declare_visit(CALL64r);

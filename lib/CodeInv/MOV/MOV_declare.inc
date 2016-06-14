@@ -1,0 +1,9 @@
+declare_visit(MOV32r);
+declare_visit(MOV32rm);
+declare_visit(MOV64r);
+declare_visit(MOV64ri32);
+declare_visit(MOV8m);
+declare_visit(MOV32m);
+declare_visit(MOV64m);
+declare_visit(MOV64mi32);
+declare_visit(MOV64rm);

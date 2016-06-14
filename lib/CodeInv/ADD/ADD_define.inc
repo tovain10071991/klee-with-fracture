@@ -1,11 +1,3 @@
-#include "CodeInv/IREmitter.h"
-#define GET_REGINFO_ENUM
-#include "../lib/Target/X86/X86GenRegisterInfo.inc"
-
-using namespace llvm;
-
-namespace fracture {
-
 void IREmitter::ADDr(BasicBlock *BB, MachineInstr* I, unsigned init_size, unsigned final_size)
 {
 	assert(I->getNumOperands() == 4);
@@ -102,5 +94,3 @@ define_visit(ADD64i32)
   store_CF_val(I->getOpcode(), lhs_val, rhs_val, result);
   store_OF_val(I->getOpcode(), lhs_val, rhs_val, result);
 }
-
-} // end of namespace fracture

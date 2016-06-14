@@ -1,9 +1,3 @@
-#include "CodeInv/IREmitter.h"
-
-using namespace llvm;
-
-namespace fracture {
-
 define_visit(MOV32r)
 {
   assert(I->getNumOperands()==2 && "MOV's opr's num is not 2");
@@ -266,5 +260,3 @@ define_visit(MOV64rm)
   // mask and store result
   store_reg_val(des_opr.getReg(), result);
 }
-
-} // end of namespace fracture

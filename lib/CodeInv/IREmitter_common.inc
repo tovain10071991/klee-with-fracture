@@ -1,12 +1,3 @@
-#include "CodeInv/IREmitter.h"
-#include "CodeInv/Decompiler.h"
-#define GET_REGINFO_ENUM
-#include "../lib/Target/X86/X86GenRegisterInfo.inc"
-
-using namespace llvm;
-
-namespace fracture {
-
 unsigned IREmitter::get_super_reg(unsigned reg)
 {
   const MCRegisterInfo* MRI = Dec->getDisassembler()->getMCDirector()->getMCRegisterInfo();
@@ -182,5 +173,3 @@ define_get_flag_val(ZF)
 define_get_flag_val(SF)
 define_get_flag_val(CF)
 define_get_flag_val(OF)
-
-} // end of namespace fracture

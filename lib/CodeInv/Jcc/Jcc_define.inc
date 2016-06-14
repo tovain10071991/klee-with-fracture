@@ -1,12 +1,3 @@
-#include "CodeInv/IREmitter.h"
-#include "CodeInv/Decompiler.h"
-#define GET_REGINFO_ENUM
-#include "../lib/Target/X86/X86GenRegisterInfo.inc"
-
-using namespace llvm;
-
-namespace fracture {
-
 int64_t init_Jcc(MachineInstr* I)
 {
   assert(I->getNumOperands()==2 && "opr's num is not 2");
@@ -243,5 +234,3 @@ define_visit(JS_1)
 
   Jcc(BB, I, cond_val, off);
 }
-
-} // end of namespace fracture

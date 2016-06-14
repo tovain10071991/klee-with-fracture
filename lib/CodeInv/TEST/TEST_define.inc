@@ -1,12 +1,3 @@
-#include "CodeInv/IREmitter.h"
-#include "CodeInv/Decompiler.h"
-#define GET_REGINFO_ENUM
-#include "../lib/Target/X86/X86GenRegisterInfo.inc"
-
-using namespace llvm;
-
-namespace fracture {
-
 void IREmitter::Testrr(BasicBlock *BB, MachineInstr* I)
 {
   assert(I->getNumOperands()==3 && "TESTrr's opr's num is not 3");
@@ -44,5 +35,3 @@ define_visit(TEST64rr)
 {
   Testrr(BB, I);
 }
-
-} // end of namespace fracture

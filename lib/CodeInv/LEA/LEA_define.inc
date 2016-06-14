@@ -1,9 +1,3 @@
-#include "CodeInv/IREmitter.h"
-
-using namespace llvm;
-
-namespace fracture {
-
 define_visit(LEA64r)
 {
   assert(I->getNumOperands()==6 && "LEA64r's opr's num is not 6");
@@ -31,5 +25,3 @@ define_visit(LEA64r)
   // mask and store result
   store_reg_val(des_opr.getReg(), result);
 }
-
-} // end of namespace fracture

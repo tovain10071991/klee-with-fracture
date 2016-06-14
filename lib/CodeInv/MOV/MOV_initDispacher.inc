@@ -1,0 +1,11 @@
+visitDispachers[X86::MOV32ri] = &IREmitter::visitMOV32r;
+visitDispachers[X86::MOV32rr] = &IREmitter::visitMOV32r;
+visitDispachers[X86::MOV32rm] = &IREmitter::visitMOV32rm;
+visitDispachers[X86::MOV64rr] = &IREmitter::visitMOV64r;
+visitDispachers[X86::MOV64ri32] = &IREmitter::visitMOV64ri32;
+visitDispachers[X86::MOV8mi] = &IREmitter::visitMOV8m;
+visitDispachers[X86::MOV32mi] = &IREmitter::visitMOV32m;
+visitDispachers[X86::MOV32mr] = &IREmitter::visitMOV32m;
+visitDispachers[X86::MOV64mr] = &IREmitter::visitMOV64m;
+visitDispachers[X86::MOV64mi32] = &IREmitter::visitMOV64mi32;
+visitDispachers[X86::MOV64rm] = &IREmitter::visitMOV64rm;

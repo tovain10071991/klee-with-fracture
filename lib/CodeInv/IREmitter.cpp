@@ -46,30 +46,14 @@ IREmitter::~IREmitter() {
 
 void IREmitter::initDispacher()
 {
-  visitDispachers[X86::MOV32ri] = &IREmitter::visitMOV32r;
-  visitDispachers[X86::MOV32rr] = &IREmitter::visitMOV32r;
-  visitDispachers[X86::MOV32rm] = &IREmitter::visitMOV32rm;
-  visitDispachers[X86::MOV64rr] = &IREmitter::visitMOV64r;
-  visitDispachers[X86::MOV64ri32] = &IREmitter::visitMOV64ri32;
-  visitDispachers[X86::MOV8mi] = &IREmitter::visitMOV8m;
-  visitDispachers[X86::MOV32mi] = &IREmitter::visitMOV32m;
-  visitDispachers[X86::MOV32mr] = &IREmitter::visitMOV32m;
-  visitDispachers[X86::MOV64mr] = &IREmitter::visitMOV64m;
-  visitDispachers[X86::MOV64mi32] = &IREmitter::visitMOV64mi32;
-  visitDispachers[X86::MOV64rm] = &IREmitter::visitMOV64rm;
-  
-  visitDispachers[X86::LEA64r] = &IREmitter::visitLEA64r;
-  
+  #include "MOV/MOV_initDispacher.inc"
+  #include "LEA/LEA_initDispacher.inc"
+    
   visitDispachers[X86::PUSH64r] = &IREmitter::visitPUSH64r;
   visitDispachers[X86::POP64r] = &IREmitter::visitPOP64r;
   visitDispachers[X86::LEAVE64] = &IREmitter::visitLEAVE64;
   
-  visitDispachers[X86::ADD32rr] = &IREmitter::visitADD32rr;
-  visitDispachers[X86::ADD64rr] = &IREmitter::visitADD64rr;
-  visitDispachers[X86::ADD32ri8] = &IREmitter::visitADD32ri8;
-  visitDispachers[X86::ADD64ri8] = &IREmitter::visitADD64ri8;
-  visitDispachers[X86::ADD64ri32] = &IREmitter::visitADD64ri32;
-  visitDispachers[X86::ADD64i32] = &IREmitter::visitADD64i32;
+  #include "ADD/ADD_initDispacher.inc"
   
   visitDispachers[X86::SUB64i32] = &IREmitter::visitSUB64i32;
   visitDispachers[X86::SUB64ri32] = &IREmitter::visitSUB64ri32;
@@ -96,16 +80,13 @@ void IREmitter::initDispacher()
   visitDispachers[X86::CMP8mi] = &IREmitter::visitCMP8mi;
   visitDispachers[X86::CMP64rm] = &IREmitter::visitCMP64rm;
   
-  visitDispachers[X86::TEST32rr] = &IREmitter::visitTEST32rr;
-  visitDispachers[X86::TEST64rr] = &IREmitter::visitTEST64rr;
+  #include "TEST/TEST_initDispacher.inc"
   
   visitDispachers[X86::JMP64r] = &IREmitter::visitJMP64r;
   visitDispachers[X86::JMP_1] = &IREmitter::visitJMP;
   visitDispachers[X86::JMP64pcrel32] = &IREmitter::visitJMP;
-  visitDispachers[X86::JA_1] = &IREmitter::visitJA_1;
-  visitDispachers[X86::JAE_1] = &IREmitter::visitJAE_1;
-  visitDispachers[X86::JE_1] = &IREmitter::visitJE_1;
-  visitDispachers[X86::JNE_1] = &IREmitter::visitJNE_1;
+  
+  #include "Jcc/Jcc_initDispacher.inc"
   
   visitDispachers[X86::CALL64pcrel32] = &IREmitter::visitCALL64pcrel32;
   visitDispachers[X86::CALL64r] = &IREmitter::visitCALL64r;
@@ -203,6 +184,13 @@ void IREmitter::visit(BasicBlock *BB, MachineInstr* CurInst) {
 
   BB->dump();
 }
+
+#include "IREmitter_common.inc"
+
+#include "MOV/MOV_define.inc"
+#include "LEA/LEA_define.inc"
+
+#include "ADD/ADD_define.inc"
 
 define_visit(SUB64i32)
 {
@@ -862,6 +850,9 @@ define_visit(CMP64rm)
   store_CF_val(I->getOpcode(), lhs_val, rhs_val, result);
   store_OF_val(I->getOpcode(), lhs_val, rhs_val, result);
 }
+
+#include "TEST/TEST_define.inc"
+#include "Jcc/Jcc_define.inc"
 
 define_visit(PUSH64r)
 {
