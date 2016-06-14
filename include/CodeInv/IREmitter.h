@@ -53,12 +53,12 @@ public:
   IRBuilder<>* getIRB() { return IRB; }
 
 protected:
-  std::map<unsigned, void(IREmitter::*)(BasicBlock *, MachineInstr*)> visitDispachers;
+  std::map<unsigned, void(IREmitter::*)(BasicBlock *, MachineInstr*)> visitDispatchers;
   Decompiler *Dec;
   IRBuilder<> *IRB;
   StringMap<StringRef> BaseNames;
 
-  void initDispacher();
+  void initDispatcher();
 
   // Visit Functions (Convert SDNode into Instruction/Value)
   virtual void visit(BasicBlock *BB, MachineInstr* CurInst);
@@ -73,11 +73,7 @@ protected:
   declare_visit(LEAVE64);
 
   #include "../lib/CodeInv/ADD/ADD_declare.inc"
-
-  declare_visit(SUB64i32);
-  declare_visit(SUB64ri32);
-  declare_visit(SUB64ri8);
-  declare_visit(SUB64r);
+  #include "../lib/CodeInv/SUB/SUB_declare.inc"
 
   declare_visit(SAR64r1);
   declare_visit(SAR64ri);

@@ -37,69 +37,65 @@ IREmitter::IREmitter(Decompiler *TheDec, raw_ostream &InfoOut,
   raw_ostream &ErrOut) : Infos(InfoOut), Errs(ErrOut) {
   Dec = TheDec;
   IRB = new IRBuilder<>(getGlobalContext());
-  initDispacher();
+  initDispatcher();
 }
 
 IREmitter::~IREmitter() {
   delete IRB;
 }
 
-void IREmitter::initDispacher()
+void IREmitter::initDispatcher()
 {
-  #include "MOV/MOV_initDispacher.inc"
-  #include "LEA/LEA_initDispacher.inc"
+  #include "MOV/MOV_initDispatcher.inc"
+  #include "LEA/LEA_initDispatcher.inc"
     
-  visitDispachers[X86::PUSH64r] = &IREmitter::visitPUSH64r;
-  visitDispachers[X86::POP64r] = &IREmitter::visitPOP64r;
-  visitDispachers[X86::LEAVE64] = &IREmitter::visitLEAVE64;
+  visitDispatchers[X86::PUSH64r] = &IREmitter::visitPUSH64r;
+  visitDispatchers[X86::POP64r] = &IREmitter::visitPOP64r;
+  visitDispatchers[X86::LEAVE64] = &IREmitter::visitLEAVE64;
   
-  #include "ADD/ADD_initDispacher.inc"
+  #include "ADD/ADD_initDispatcher.inc"
+  #include "SUB/SUB_initDispatcher.inc"
   
-  visitDispachers[X86::SUB64i32] = &IREmitter::visitSUB64i32;
-  visitDispachers[X86::SUB64ri32] = &IREmitter::visitSUB64ri32;
-  visitDispachers[X86::SUB64ri8] = &IREmitter::visitSUB64ri8;
-  visitDispachers[X86::SUB64rr] = &IREmitter::visitSUB64r;
+  visitDispatchers[X86::SAR64r1] = &IREmitter::visitSAR64r1;
+  visitDispatchers[X86::SAR64ri] = &IREmitter::visitSAR64ri;
+  visitDispatchers[X86::SHR64ri] = &IREmitter::visitSHR64ri;
   
-  visitDispachers[X86::SAR64r1] = &IREmitter::visitSAR64r1;
-  visitDispachers[X86::SAR64ri] = &IREmitter::visitSAR64ri;
-  visitDispachers[X86::SHR64ri] = &IREmitter::visitSHR64ri;
+  visitDispatchers[X86::AND64ri8] = &IREmitter::visitAND64ri8;
+  visitDispatchers[X86::AND32i32] = &IREmitter::visitAND32i32;
+  visitDispatchers[X86::OR64ri8] = &IREmitter::visitOR64ri8;
+  visitDispatchers[X86::XOR32rr] = &IREmitter::visitXOR32r;
   
-  visitDispachers[X86::AND64ri8] = &IREmitter::visitAND64ri8;
-  visitDispachers[X86::AND32i32] = &IREmitter::visitAND32i32;
-  visitDispachers[X86::OR64ri8] = &IREmitter::visitOR64ri8;
-  visitDispachers[X86::XOR32rr] = &IREmitter::visitXOR32r;
+  visitDispatchers[X86::NEG32r] = &IREmitter::visitNEG32r;
   
-  visitDispachers[X86::NEG32r] = &IREmitter::visitNEG32r;
+  visitDispatchers[X86::CMP32ri8] = &IREmitter::visitCMP32ri8;
+  visitDispatchers[X86::CMP64ri8] = &IREmitter::visitCMP64ri8;
+  visitDispatchers[X86::CMP64i32] = &IREmitter::visitCMP64i32;
+  visitDispatchers[X86::CMP64rr] = &IREmitter::visitCMP64r;
+  visitDispatchers[X86::CMP32mi8] = &IREmitter::visitCMP32mi8;
+  visitDispatchers[X86::CMP64mi8] = &IREmitter::visitCMP64mi8;
+  visitDispatchers[X86::CMP8mi] = &IREmitter::visitCMP8mi;
+  visitDispatchers[X86::CMP64rm] = &IREmitter::visitCMP64rm;
   
-  visitDispachers[X86::CMP32ri8] = &IREmitter::visitCMP32ri8;
-  visitDispachers[X86::CMP64ri8] = &IREmitter::visitCMP64ri8;
-  visitDispachers[X86::CMP64i32] = &IREmitter::visitCMP64i32;
-  visitDispachers[X86::CMP64rr] = &IREmitter::visitCMP64r;
-  visitDispachers[X86::CMP32mi8] = &IREmitter::visitCMP32mi8;
-  visitDispachers[X86::CMP64mi8] = &IREmitter::visitCMP64mi8;
-  visitDispachers[X86::CMP8mi] = &IREmitter::visitCMP8mi;
-  visitDispachers[X86::CMP64rm] = &IREmitter::visitCMP64rm;
+  #include "TEST/TEST_initDispatcher.inc"
   
-  #include "TEST/TEST_initDispacher.inc"
+  visitDispatchers[X86::JMP64r] = &IREmitter::visitJMP64r;
+  visitDispatchers[X86::JMP_1] = &IREmitter::visitJMP;
+  visitDispatchers[X86::JMP64pcrel32] = &IREmitter::visitJMP;
   
-  visitDispachers[X86::JMP64r] = &IREmitter::visitJMP64r;
-  visitDispachers[X86::JMP_1] = &IREmitter::visitJMP;
-  visitDispachers[X86::JMP64pcrel32] = &IREmitter::visitJMP;
+  #include "Jcc/Jcc_initDispatcher.inc"
   
-  #include "Jcc/Jcc_initDispacher.inc"
+  visitDispatchers[X86::CALL64pcrel32] = &IREmitter::visitCALL64pcrel32;
+  visitDispatchers[X86::CALL64r] = &IREmitter::visitCALL64r;
+  visitDispatchers[X86::CALL64m] = &IREmitter::visitCALL64m;
+  visitDispatchers[X86::RET] = &IREmitter::visitRET;
   
-  visitDispachers[X86::CALL64pcrel32] = &IREmitter::visitCALL64pcrel32;
-  visitDispachers[X86::CALL64r] = &IREmitter::visitCALL64r;
-  visitDispachers[X86::CALL64m] = &IREmitter::visitCALL64m;
-  visitDispachers[X86::RET] = &IREmitter::visitRET;
+  visitDispatchers[X86::NOOP] = &IREmitter::visitNOOP;
+  visitDispatchers[X86::NOOPL] = &IREmitter::visitNOOP;
+  visitDispatchers[X86::NOOPW] = &IREmitter::visitNOOP;
+  visitDispatchers[X86::REP_PREFIX] = &IREmitter::visitNOOP;
+  visitDispatchers[X86::HLT] = &IREmitter::visitNOOP;
   
-  visitDispachers[X86::NOOP] = &IREmitter::visitNOOP;
-  visitDispachers[X86::NOOPL] = &IREmitter::visitNOOP;
-  visitDispachers[X86::NOOPW] = &IREmitter::visitNOOP;
-  visitDispachers[X86::REP_PREFIX] = &IREmitter::visitNOOP;
-  visitDispachers[X86::HLT] = &IREmitter::visitNOOP;
-  
-  visitDispachers[X86::SYSCALL] = &IREmitter::visitSYSCALL;
+  visitDispatchers[X86::SYSCALL] = &IREmitter::visitSYSCALL;
   
 }
 
@@ -178,8 +174,8 @@ void IREmitter::visit(BasicBlock *BB, MachineInstr* CurInst) {
   ConstantInt* next_rip = ConstantInt::get(Type::getInt64Ty(*context), get_load_addr(Dec->getDisassembler()->getDebugOffset(CurInst->getDebugLoc()), Dec->getDisassembler()->getExecutable()->getFileName(), Dec->getDisassembler()->getCurrentSectionName()) + CurInst->getDesc().getSize());
   store_reg_val(X86::RIP, next_rip);
   
-  assert(visitDispachers.find(CurInst->getOpcode()) != visitDispachers.end() && "unknown opcode when decompileBasicBlock");
-  void(IREmitter::*dispatcher)(BasicBlock *, MachineInstr*) = visitDispachers[CurInst->getOpcode()];
+  assert(visitDispatchers.find(CurInst->getOpcode()) != visitDispatchers.end() && "unknown opcode when decompileBasicBlock");
+  void(IREmitter::*dispatcher)(BasicBlock *, MachineInstr*) = visitDispatchers[CurInst->getOpcode()];
   (this->*dispatcher)(BB, CurInst);
 
   BB->dump();
@@ -191,146 +187,7 @@ void IREmitter::visit(BasicBlock *BB, MachineInstr* CurInst) {
 #include "LEA/LEA_define.inc"
 
 #include "ADD/ADD_define.inc"
-
-define_visit(SUB64i32)
-{
-  assert(I->getNumOperands()==4 && "SUB64i32's opr's num is not 4");
-  MachineOperand& rhs_opr = I->getOperand(0);
-  assert(rhs_opr.isImm() && "opr 0(rhs imm) is not imm in IREmitter::visitSUB64i32");
-  MachineOperand& lhs_opr = I->getOperand(3);
-  assert(lhs_opr.isReg() && "opr 3(lhs reg) is not reg in IREmitter::visitSUBNi32");
-  MachineOperand& des_opr = I->getOperand(1);
-  assert(des_opr.isReg() && des_opr.getReg()==lhs_opr.getReg() && "opr 1(defed reg) is not used reg in IREmitter::visitSUBNi32");
-  assert(I->getOperand(2).isReg() && I->getOperand(2).getReg()==X86::EFLAGS && "opr 2(falgs) is not eflags in IREmitter::visitSUBNi32");
-  
-  IRB->SetInsertPoint(BB);
-
-  //read lhs
-  Value* lhs_val = get_reg_val(lhs_opr.getReg());
-
-  //read rhs
-  Constant* rhs_val = get_imm_val(rhs_opr.getImm(), 32, 64);
-
-  // compute
-  Value* result = IRB->CreateSub(lhs_val, rhs_val);
-
-  // writeback
-  store_reg_val(des_opr.getReg(), result);
-
-  store_AF_val(I->getOpcode(), lhs_val, rhs_val, result);
-  store_PF_val(I->getOpcode(), lhs_val, rhs_val, result);
-  store_ZF_val(I->getOpcode(), lhs_val, rhs_val, result);
-  store_SF_val(I->getOpcode(), lhs_val, rhs_val, result);
-  store_CF_val(I->getOpcode(), lhs_val, rhs_val, result);
-  store_OF_val(I->getOpcode(), lhs_val, rhs_val, result);
-}
-
-define_visit(SUB64ri32)
-{
-  assert(I->getNumOperands()==4 && "SUB64ri32's opr's num is not 4");
-  MachineOperand& lhs_opr = I->getOperand(1);
-  assert(lhs_opr.isReg() && "opr 1(lhs reg) is not reg in IREmitter::visitSUB64ri32");
-  MachineOperand& rhs_opr = I->getOperand(2);
-  assert(rhs_opr.isImm() && "opr 2(rhs imm) is not imm in IREmitter::visitSUB64ri32");
-  assert(I->getOperand(3).isReg() && I->getOperand(3).getReg()==X86::EFLAGS && "opr 3(efalgs) is not eflags in IREmitter::visitSUBNi32");
-  MachineOperand& des_opr = I->getOperand(0);
-  assert(des_opr.isReg() && des_opr.getReg()==lhs_opr.getReg() && "opr 0(defed reg) is not used reg in IREmitter::visitSUB64ri32");
-
-  IRB->SetInsertPoint(BB);
-
-  //read lhs
-  Value* lhs_val = get_reg_val(lhs_opr.getReg());
-
-  //read rhs
-  Constant* rhs_val = get_imm_val(rhs_opr.getImm(), 32, 64);
-
-  // compute
-  Value* result = IRB->CreateSub(lhs_val, rhs_val);
-
-  // writeback
-  store_reg_val(des_opr.getReg(), result);
-
-  store_AF_val(I->getOpcode(), lhs_val, rhs_val, result);
-  store_PF_val(I->getOpcode(), lhs_val, rhs_val, result);
-  store_ZF_val(I->getOpcode(), lhs_val, rhs_val, result);
-  store_SF_val(I->getOpcode(), lhs_val, rhs_val, result);
-  store_CF_val(I->getOpcode(), lhs_val, rhs_val, result);
-  store_OF_val(I->getOpcode(), lhs_val, rhs_val, result);
-}
-
-define_visit(SUB64ri8)
-{
-  assert(I->getNumOperands()==4 && "SUB64ri8's opr's num is not 4");
-  MachineOperand& lhs_opr = I->getOperand(1);
-  assert(lhs_opr.isReg() && "opr 1(lhs reg) is not reg in IREmitter::visitSUB64ri8");
-  MachineOperand& rhs_opr = I->getOperand(2);
-  assert(rhs_opr.isImm() && "opr 2(rhs imm) is not imm in IREmitter::visitSUB64ri8");
-  assert(I->getOperand(3).isReg() && I->getOperand(3).getReg()==X86::EFLAGS && "opr 3(efalgs) is not eflags in IREmitter::visitSUBNi32");
-  MachineOperand& des_opr = I->getOperand(0);
-  assert(des_opr.isReg() && des_opr.getReg()==lhs_opr.getReg() && "opr 0(defed reg) is not used reg in IREmitter::visitSUB64ri8");
-  
-  IRB->SetInsertPoint(BB);
-
-  //read lhs
-  Value* lhs_val = get_reg_val(lhs_opr.getReg());
-
-  //read rhs
-  Constant* rhs_val = get_imm_val(rhs_opr.getImm(), 8, 64);
-
-  // compute
-  Value* result = IRB->CreateSub(lhs_val, rhs_val);
-
-  // writeback
-  store_reg_val(des_opr.getReg(), result);
-
-  store_AF_val(I->getOpcode(), lhs_val, rhs_val, result);
-  store_PF_val(I->getOpcode(), lhs_val, rhs_val, result);
-  store_ZF_val(I->getOpcode(), lhs_val, rhs_val, result);
-  store_SF_val(I->getOpcode(), lhs_val, rhs_val, result);
-  store_CF_val(I->getOpcode(), lhs_val, rhs_val, result);
-  store_OF_val(I->getOpcode(), lhs_val, rhs_val, result);
-}
-
-define_visit(SUB64r)
-{
-  assert(I->getNumOperands()==4);
-  MachineOperand& lhs_opr = I->getOperand(1);
-  assert(lhs_opr.isReg());
-  MachineOperand& rhs_opr = I->getOperand(2);
-  assert(I->getOperand(3).isReg() && I->getOperand(3).getReg()==X86::EFLAGS);
-  MachineOperand& des_opr = I->getOperand(0);
-  assert(des_opr.isReg() && des_opr.getReg()==lhs_opr.getReg());
-  
-  IRB->SetInsertPoint(BB);
-
-  //read lhs
-  Value* lhs_val = get_reg_val(lhs_opr.getReg());
-
-  //read rhs
-  //read rhs
-  Value* rhs_val;
-  if(rhs_opr.isImm())
-  {
-    rhs_val = get_imm_val(rhs_opr.getImm(), 64, 64);
-  }
-  else
-  {
-    rhs_val = get_reg_val(rhs_opr.getReg());
-  }
-
-  // compute
-  Value* result = IRB->CreateSub(lhs_val, rhs_val);
-
-  // writeback
-  store_reg_val(des_opr.getReg(), result);
-
-  store_AF_val(I->getOpcode(), lhs_val, rhs_val, result);
-  store_PF_val(I->getOpcode(), lhs_val, rhs_val, result);
-  store_ZF_val(I->getOpcode(), lhs_val, rhs_val, result);
-  store_SF_val(I->getOpcode(), lhs_val, rhs_val, result);
-  store_CF_val(I->getOpcode(), lhs_val, rhs_val, result);
-  store_OF_val(I->getOpcode(), lhs_val, rhs_val, result);
-}
+#include "SUB/SUB_define.inc"
 
 define_visit(SAR64r1)
 {
