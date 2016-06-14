@@ -1,0 +1,1 @@
+visitDispatchers[X86::NEG32r] = &IREmitter::visitNEG32r;

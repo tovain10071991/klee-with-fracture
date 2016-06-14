@@ -1,0 +1,1 @@
+declare_visit(NEG32r);

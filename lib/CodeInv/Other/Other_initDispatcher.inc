@@ -1,0 +1,1 @@
+visitDispatchers[X86::HLT] = &IREmitter::visitNOOP;

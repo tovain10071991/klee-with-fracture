@@ -1,0 +1,1 @@
+visitDispatchers[X86::SHR64ri] = &IREmitter::visitSHR64ri;

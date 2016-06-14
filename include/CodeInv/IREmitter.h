@@ -68,49 +68,34 @@ protected:
   #include "../lib/CodeInv/MOV/MOV_declare.inc"
   #include "../lib/CodeInv/LEA/LEA_declare.inc"
 
-  declare_visit(PUSH64r);
-  declare_visit(POP64r);
-  declare_visit(LEAVE64);
+  #include "../lib/CodeInv/PUSH/PUSH_declare.inc"
+  #include "../lib/CodeInv/POP/POP_declare.inc"
+  #include "../lib/CodeInv/LEAVE/LEAVE_declare.inc"
 
   #include "../lib/CodeInv/ADD/ADD_declare.inc"
   #include "../lib/CodeInv/SUB/SUB_declare.inc"
 
-  declare_visit(SAR64r1);
-  declare_visit(SAR64ri);
-  declare_visit(SHR64ri);
+  #include "../lib/CodeInv/SAR/SAR_declare.inc"
+  #include "../lib/CodeInv/SHR/SHR_declare.inc"
 
-  declare_visit(AND64ri8);
-  declare_visit(AND32i32);
-  declare_visit(OR64ri8);
-  declare_visit(XOR32r);
+  #include "../lib/CodeInv/AND/AND_declare.inc"
+  #include "../lib/CodeInv/OR/OR_declare.inc"
+  #include "../lib/CodeInv/XOR/XOR_declare.inc"
+  #include "../lib/CodeInv/NEG/NEG_declare.inc"
 
-  declare_visit(NEG32r);
-
-  declare_visit(CMP32ri8);
-  declare_visit(CMP64ri8);
-  declare_visit(CMP64i32);
-  declare_visit(CMP64r);
-  declare_visit(CMP32mi8);
-  declare_visit(CMP64mi8);
-  declare_visit(CMP8mi);
-  declare_visit(CMP64rm);
-
+  #include "../lib/CodeInv/CMP/CMP_declare.inc"
   #include "../lib/CodeInv/TEST/TEST_declare.inc"
-
-  declare_visit(JMP64r);
-  declare_visit(JMP);
   
+  #include "../lib/CodeInv/JMP/JMP_declare.inc"
   #include "../lib/CodeInv/Jcc/Jcc_declare.inc"
 
-  declare_visit(CALL64pcrel32);
-  declare_visit(CALL64r);
-  declare_visit(CALL64m);
-  declare_visit(RET);
+  #include "../lib/CodeInv/CALL/CALL_declare.inc"
+  #include "../lib/CodeInv/RET/RET_declare.inc"
 
-  declare_visit(NOOP);
-  
-  declare_visit(SYSCALL);
-  
+  #include "../lib/CodeInv/SYSCALL/SYSCALL_declare.inc"
+
+  #include "../lib/CodeInv/NOOP/NOOP_declare.inc"
+    
   /// Error printing
   raw_ostream &Infos, &Errs;
   void printInfo(std::string Msg) const {

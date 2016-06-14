@@ -1,0 +1,1 @@
+visitDispatchers[X86::OR64ri8] = &IREmitter::visitOR64ri8;

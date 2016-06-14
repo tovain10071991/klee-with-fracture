@@ -1,0 +1,1 @@
+visitDispatchers[X86::POP64r] = &IREmitter::visitPOP64r;

@@ -1,0 +1,1 @@
+visitDispatchers[X86::XOR32rr] = &IREmitter::visitXOR32r;
