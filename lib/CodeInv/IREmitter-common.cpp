@@ -81,6 +81,7 @@ Value* IREmitter::get_pointer_val(BasicBlock* BB, unsigned base_reg, int64_t sca
   Value* scale_val = ConstantInt::get(Type::getInt64Ty(*context), scale);
   Value* idx_val = idx_reg==X86::NoRegister ? ConstantInt::get(Type::getInt64Ty(*context), 0) : get_reg_val(idx_reg);
   Value* offset_val = ConstantInt::get(Type::getInt64Ty(*context), offset);
+  assert(seg_reg != X86::CS && seg_reg != X86::SS);
   if(seg_reg == X86::FS)
     seg_val = IRB->CreateLoad(Dec->getModule()->getGlobalVariable("FS_BASE"));
   else if(seg_reg == X86::GS)

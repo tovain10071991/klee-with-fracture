@@ -108,7 +108,7 @@ string get_absolute(string name)
 */
 string get_absolute(SBFileSpec file_spec)
 {
-  return get_absolute(string(file_spec.GetFilename()));
+  return get_absolute(string(file_spec.GetDirectory())+"/"+file_spec.GetFilename());
 }
 /*
 unsigned long get_base(string module_name)

@@ -1,7 +1,7 @@
 LEVEL=../..
 TOOLNAME=test
 
-USEDLIBS = SaibHelper.a
+USEDLIBS = SaibHelper.a FractureCodeInv.a
 
 include $(LEVEL)/Makefile.common
 

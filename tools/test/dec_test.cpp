@@ -1,4 +1,4 @@
-#include "Helper/ptraceHelper.h"
+#include "Helper/DecompileHelper.h"
 
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>
@@ -10,24 +10,21 @@
 
 using namespace boost;
 using namespace std;
-
-namespace {
+using namespace llvm;
 
 void handle_quit(const vector<string>& args);
 void handle_launch(const vector<string>& args);
-void handle_get_mem(const vector<string>& args);
-void handle_get_reg(const vector<string>& args);
+void handle_dec(const vector<string>& args);
 
 map<string, void(*)(const vector<string>&)> cmd_func_map = {
   {"q", handle_quit},
   {"launch", handle_launch},
-  {"get_mem", handle_get_mem},
-  {"get_reg", handle_get_reg}
+  {"dec", handle_dec},
 };
 
 void print_prompt()
 {
-  cout << "(ptrace test) ";
+  cout << "(dec test) ";
 }
 
 vector<string> split_str(string str)
@@ -67,26 +64,13 @@ void handle_quit(const vector<string>& args)
 void handle_launch(const vector<string>& args)
 {
   assert(args.size()==1);
-  create_debugger_by_ptrace(args[0]);
+  Module* init_mdl = get_module(args[0]);
+  cout << "luanch done: " << init_mdl->getModuleIdentifier() << endl;
 }
 
-void handle_get_mem(const vector<string>& args)
+void handle_dec(const vector<string>& args)
 {
   assert(args.size()==1);
-  ::uint64_t addr = stoull(args[0]);
-  long data;
-  get_mem(addr, sizeof(long), &data);
-  cout << "0x" << hex << addr << ": 0x" << data << endl;
-}
-
-void handle_get_reg(const vector<string>& args)
-{
-  assert(args.size()==1);
-  ::uint64_t value;
-  unsigned val_size;
-  if(!get_reg(args[0], &value, 8, val_size))
-    cerr << "invalid reg name" << endl;
-  cout << args[0] << ": 0x" << hex << value << endl;
-}
-
+  Module* mdl = get_module_with_function(args[0]);
+  cout << "dec done" << endl;
 }

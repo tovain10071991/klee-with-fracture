@@ -102,6 +102,7 @@ long get_reg(string reg_name)
     {"fs", regs.fs},
     {"gs", regs.gs},
   };
+  assert(!regs.ds && !regs.es);
   if(name_reg_map.find(omit_case(reg_name))==name_reg_map.end())
     errx(-1, "can't find reg: %s", reg_name.c_str());
   return name_reg_map[reg_name];
