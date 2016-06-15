@@ -68,6 +68,8 @@ protected:
   #include "../lib/CodeInv/MOV/MOV_declare.inc"
   #include "../lib/CodeInv/LEA/LEA_declare.inc"
 
+  #include "../lib/CodeInv/CMOVcc/CMOVcc_declare.inc"
+
   #include "../lib/CodeInv/PUSH/PUSH_declare.inc"
   #include "../lib/CodeInv/POP/POP_declare.inc"
   #include "../lib/CodeInv/LEAVE/LEAVE_declare.inc"

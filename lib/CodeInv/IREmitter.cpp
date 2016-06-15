@@ -49,6 +49,8 @@ void IREmitter::initDispatcher()
   #include "MOV/MOV_initDispatcher.inc"
   #include "LEA/LEA_initDispatcher.inc"
   
+  #include "CMOVcc/CMOVcc_initDispatcher.inc"  
+  
   #include "PUSH/PUSH_initDispatcher.inc"
   #include "POP/POP_initDispatcher.inc"
   #include "LEAVE/LEAVE_initDispatcher.inc"
@@ -170,6 +172,8 @@ void IREmitter::visit(BasicBlock *BB, MachineInstr* CurInst) {
 
 #include "MOV/MOV_define.inc"
 #include "LEA/LEA_define.inc"
+
+#include "CMOVcc/CMOVcc_define.inc"
 
 #include "PUSH/PUSH_define.inc"
 #include "POP/POP_define.inc"
