@@ -44,7 +44,7 @@ define_visit(MOV32rm)
   IRB->SetInsertPoint(BB);
 
   // read src
-  Value* src_val = get_mem_val(BB, base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 32);
+  Value* src_val = get_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 32);
 
   // compute
   Value* result = src_val;
@@ -132,7 +132,7 @@ define_visit(MOV8m)
   Value* result = src_val;
 
   // mask and store result
-  store_mem_val(BB, base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), result);
+  store_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), result);
 }
 
 define_visit(MOV32m)
@@ -167,7 +167,7 @@ define_visit(MOV32m)
   Value* result = src_val;
 
   // mask and store result
-  store_mem_val(BB, base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), result);
+  store_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), result);
 }
 
 define_visit(MOV64m)
@@ -202,7 +202,7 @@ define_visit(MOV64m)
   Value* result = src_val;
 
   // mask and store result
-  store_mem_val(BB, base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), result);
+  store_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), result);
 }
 
 define_visit(MOV64mi32)
@@ -230,7 +230,7 @@ define_visit(MOV64mi32)
   Value* result = src_val;
 
   // mask and store result
-  store_mem_val(BB, base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), result);
+  store_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), result);
 }
 
 define_visit(MOV64rm)
@@ -252,7 +252,7 @@ define_visit(MOV64rm)
   IRB->SetInsertPoint(BB);
 
   // read src
-  Value* src_val = get_mem_val(BB, base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 64);
+  Value* src_val = get_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 64);
 
   // compute
   Value* result = src_val;

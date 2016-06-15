@@ -17,7 +17,7 @@ define_visit(LEA64r)
   IRB->SetInsertPoint(BB);
 
   // read src
-  Value* src_val = get_pointer_val(BB, base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg());
+  Value* src_val = get_pointer_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg());
 
   // compute
   Value* result = src_val;

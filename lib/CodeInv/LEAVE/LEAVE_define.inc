@@ -12,7 +12,7 @@ define_visit(LEAVE64)
   store_reg_val(X86::RSP, get_reg_val(X86::RBP));
 
   // mov (%rsp), %rbp
-  store_reg_val(X86::RBP, get_mem_val(BB, X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, 64));
+  store_reg_val(X86::RBP, get_mem_val(X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, 64));
 
   // rsp = rsp + 8
   Value* lhs_val = get_reg_val(X86::RSP);

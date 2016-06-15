@@ -25,5 +25,5 @@ define_visit(PUSH64r)
   // compute
   Value* result = src_val;
 
-  store_mem_val(BB, X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, result);
+  store_mem_val(X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, result);
 }

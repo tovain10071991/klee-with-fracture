@@ -110,9 +110,9 @@ protected:
   unsigned get_super_reg(unsigned reg);
   Value* get_reg_val(unsigned reg);
   void store_reg_val(unsigned reg, Value* val);
-  Value* get_pointer_val(BasicBlock* BB, unsigned base_reg, int64_t scale, unsigned idx_reg, int64_t offset, unsigned seg_reg);
-  Value* get_mem_val(BasicBlock* BB, unsigned base_reg, int64_t scale, unsigned idx_reg, int64_t offset, unsigned seg_reg, unsigned mem_size);
-  void store_mem_val(BasicBlock* BB, unsigned base_reg, int64_t scale, unsigned idx_reg, int64_t offset, unsigned seg_reg, Value* val);
+  Value* get_pointer_val(unsigned base_reg, int64_t scale, unsigned idx_reg, int64_t offset, unsigned seg_reg);
+  Value* get_mem_val(unsigned base_reg, int64_t scale, unsigned idx_reg, int64_t offset, unsigned seg_reg, unsigned mem_size);
+  void store_mem_val(unsigned base_reg, int64_t scale, unsigned idx_reg, int64_t offset, unsigned seg_reg, Value* val);
   Constant* get_imm_val(int64_t imm, unsigned init_size, unsigned final_size);
 
 #define declare_store_flag_val(name) \
