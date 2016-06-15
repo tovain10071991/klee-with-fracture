@@ -1,0 +1,1 @@
+visitDispatchers[X86::REP_PREFIX] = &IREmitter::visitREP;

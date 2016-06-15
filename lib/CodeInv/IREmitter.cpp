@@ -73,11 +73,13 @@ void IREmitter::initDispatcher()
   #include "CALL/CALL_initDispatcher.inc"
   #include "RET/RET_initDispatcher.inc"
   
+  #include "REP/REP_initDispatcher.inc"
+
+  #include "STOS/STOS_initDispatcher.inc"
+  
   #include "SYSCALL/SYSCALL_initDispatcher.inc"
   
   #include "NOOP/NOOP_initDispatcher.inc"
-
-  visitDispatchers[X86::REP_PREFIX] = &IREmitter::visitNOOP;
   
   #include "Other/Other_initDispatcher.inc"  
 }
@@ -192,6 +194,10 @@ void IREmitter::visit(BasicBlock *BB, MachineInstr* CurInst) {
 
 #include "CALL/CALL_define.inc"
 #include "RET/RET_define.inc"
+
+#include "REP/REP_define.inc"
+
+#include "STOS/STOS_define.inc"
 
 #include "SYSCALL/SYSCALL_define.inc"
 

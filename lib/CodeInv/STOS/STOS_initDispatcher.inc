@@ -1,0 +1,1 @@
+visitDispatchers[X86::STOSQ] = &IREmitter::visitSTOSQ;

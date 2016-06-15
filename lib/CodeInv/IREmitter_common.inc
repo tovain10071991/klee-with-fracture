@@ -1,3 +1,5 @@
+static bool has_prefix = false;
+
 unsigned IREmitter::get_super_reg(unsigned reg)
 {
   const MCRegisterInfo* MRI = Dec->getDisassembler()->getMCDirector()->getMCRegisterInfo();
@@ -173,3 +175,4 @@ define_get_flag_val(ZF)
 define_get_flag_val(SF)
 define_get_flag_val(CF)
 define_get_flag_val(OF)
+define_get_flag_val(DF)

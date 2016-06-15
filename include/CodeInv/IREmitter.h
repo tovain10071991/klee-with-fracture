@@ -92,6 +92,10 @@ protected:
   #include "../lib/CodeInv/CALL/CALL_declare.inc"
   #include "../lib/CodeInv/RET/RET_declare.inc"
 
+  #include "../lib/CodeInv/REP/REP_declare.inc"
+  
+  #include "../lib/CodeInv/STOS/STOS_declare.inc"  
+
   #include "../lib/CodeInv/SYSCALL/SYSCALL_declare.inc"
 
   #include "../lib/CodeInv/NOOP/NOOP_declare.inc"
@@ -132,6 +136,7 @@ protected:
   declare_get_flag_val(SF);
   declare_get_flag_val(CF);
   declare_get_flag_val(OF);
+  declare_get_flag_val(DF);
 
 };
 
