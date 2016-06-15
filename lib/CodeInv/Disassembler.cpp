@@ -20,7 +20,20 @@
 
 #include <err.h>
 
+#ifdef DEC_TEST
+#include <string>
+
+static unsigned long get_load_addr(unsigned long addr, std::string obj_name, std::string sec_name)
+{
+  return addr;
+}
+static std::string get_func_name(unsigned long addr)
+{
+  return "noname";
+}
+#else
 #include "Helper/LLDBHelper.h"
+#endif
 
 using namespace llvm;
 
@@ -118,7 +131,11 @@ MachineFunction* Disassembler::disassemble(unsigned Address) {
 
   StringRef SectionName;
   CurSection.getName(SectionName);
+#ifdef DEC_TEST
+  unsigned sym_unload_endaddr = Address + 1000;
+#else
   unsigned sym_unload_endaddr = get_sym_unload_endaddr(Address, Executable->getFileName().str(), SectionName.str());
+#endif
   nextAddr = nextAddr < sym_unload_endaddr ? nextAddr : sym_unload_endaddr;
 
   if (MF->size() == 0) {

@@ -76,8 +76,13 @@ endif
 # disable unwind test
 TEST_FEATURE_LIST += no-unwind
 
+ifdef DEC_TEST
+CFLAGS := @CFLAGS@ -Wall -g -DDEC_TEST
+CXXFLAGS := @CXXFLAGS@ -g -Wall -DDEC_TEST
+else
 CFLAGS := @CFLAGS@ -Wall -g
 CXXFLAGS := @CXXFLAGS@ -g -Wall
+endif
 LDFLAGS := @LDFLAGS@ -g
 
 REQUIRES_RTTI := @REQUIRES_RTTI@

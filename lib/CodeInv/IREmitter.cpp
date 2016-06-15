@@ -27,7 +27,18 @@
 #include <err.h>
 #include <string>
 
+#ifdef DEC_TEST
+static unsigned long get_load_addr(unsigned long addr, std::string obj_name, std::string sec_name)
+{
+  return addr;
+}
+static std::string get_func_name_in_plt(uint64_t addr)
+{
+  return "noname";
+}
+#else
 #include "Helper/LLDBHelper.h"
+#endif
 
 using namespace llvm;
 

@@ -9,6 +9,24 @@
 #include <map>
 #include <string>
 
+#ifdef DEC_TEST
+#include <errno.h>
+#include <err.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#include "CodeInv/Disassembler.h"
+#include "CodeInv/MCDirector.h"
+#include "CodeInv/Decompiler.h"
+
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/Support/Host.h"
+#include "llvm/Object/ObjectFile.h"
+
+using namespace fracture;
+#endif
+
 using namespace boost;
 using namespace std;
 using namespace llvm;
@@ -47,12 +65,33 @@ int main(int argc, char** argv)
 {
   if(argc!=1)
   {
+#ifdef DEC_TEST
+    InitializeNativeTarget();
+    InitializeNativeTargetDisassembler();
+    InitializeNativeTargetAsmParser();
+    
+    string tripleName = sys::getDefaultTargetTriple();
+  
+    MCDirector* mcd = new MCDirector(tripleName, "generic", "", TargetOptions(), Reloc::DynamicNoPIC, CodeModel::Default, CodeGenOpt::Default, outs(), errs());
+  
+    object::ObjectFile* obj = object::ObjectFile::createObjectFile(argv[1]);
+    assert(obj->isObject() && obj->isELF() && "it is not object");
+  
+    Disassembler* disassembler = new Disassembler(mcd, obj, NULL, outs(), outs());
+    Decompiler* decompiler = new Decompiler(disassembler, NULL, nulls(), nulls());
+    
+    ::uint64_t addr = stoull(argv[2], 0, 0);
+    assert(addr);
+    decompiler->decompileFunction(addr);
+    return 0;
+#else
     create_debugger(argv[1]);
     ::uint64_t addr = stoull(argv[2], 0, 0);
     assert(addr);
     get_module_with_function(addr);
     cout << "dec done" << endl;
     return 0;
+#endif
   }
   while(1)
   {
