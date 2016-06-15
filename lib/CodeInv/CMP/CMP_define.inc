@@ -137,7 +137,7 @@ define_visit(CMP32mi8)
   IRB->SetInsertPoint(BB);
 
   // read lhs
-  Value* lhs_val = get_mem_val(BB, base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 32);
+  Value* lhs_val = get_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 32);
 
   //read rhs
   Value* rhs_val = get_imm_val(rhs_opr.getImm(), 8, 32);
@@ -172,7 +172,7 @@ define_visit(CMP64mi8)
   IRB->SetInsertPoint(BB);
 
   // read lhs
-  Value* lhs_val = get_mem_val(BB, base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 64);
+  Value* lhs_val = get_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 64);
 
   //read rhs
   Value* rhs_val = get_imm_val(rhs_opr.getImm(), 8, 64);
@@ -207,7 +207,7 @@ define_visit(CMP8mi)
   IRB->SetInsertPoint(BB);
 
   // read lhs
-  Value* lhs_val = get_mem_val(BB, base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 8);
+  Value* lhs_val = get_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 8);
 
   //read rhs
   Value* rhs_val = get_imm_val(rhs_opr.getImm(), 8, 8);
@@ -246,7 +246,7 @@ define_visit(CMP64rm)
   Value* lhs_val = get_reg_val(lhs_opr.getReg());
 
   //read rhs
-  Value* rhs_val = get_mem_val(BB, base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 64);
+  Value* rhs_val = get_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 64);
 
   // compute
   Value* result = IRB->CreateSub(lhs_val, rhs_val);

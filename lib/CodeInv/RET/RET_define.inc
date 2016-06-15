@@ -7,7 +7,7 @@ define_visit(RET)
   // pop rip
   // mov (%rsp), rip
   // read src
-  Value* src_val = get_mem_val(BB, X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, 64);
+  Value* src_val = get_mem_val(X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, 64);
 
   // compute
   Value* result = src_val;

@@ -20,7 +20,7 @@ define_visit(CALL64pcrel32)
   // compute
   Value* result = src_val;
 
-  store_mem_val(BB, X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, result);
+  store_mem_val(X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, result);
 
   // jmp target
   int64_t off = off_opr.getImm();
@@ -66,7 +66,7 @@ define_visit(CALL64r)
   // compute
   Value* result = src_val;
 
-  store_mem_val(BB, X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, result);
+  store_mem_val(X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, result);
 
  // jmp target
   Value* target_val = get_reg_val(target_opr.getReg());
@@ -102,7 +102,7 @@ define_visit(CALL64m)
   // compute
   Value* result = src_val;
 
-  store_mem_val(BB, X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, result);
+  store_mem_val(X86::RSP, 0, X86::NoRegister, 0, X86::NoRegister, result);
 
  // jmp target
 //  Value* target_val = get_reg_val(target_opr.getReg());

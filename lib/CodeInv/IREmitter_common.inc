@@ -65,7 +65,7 @@ void IREmitter::store_reg_val(unsigned reg, Value* val)
   IRB->CreateStore(val, super_reg_var);
 }
 
-Value* IREmitter::get_pointer_val(BasicBlock* BB, unsigned base_reg, int64_t scale, unsigned idx_reg, int64_t offset, unsigned seg_reg)
+Value* IREmitter::get_pointer_val(unsigned base_reg, int64_t scale, unsigned idx_reg, int64_t offset, unsigned seg_reg)
 {
   LLVMContext* context = Dec->getContext();
 
@@ -82,18 +82,18 @@ Value* IREmitter::get_pointer_val(BasicBlock* BB, unsigned base_reg, int64_t sca
   return IRB->CreateAdd(seg_val, IRB->CreateAdd(base_val, IRB->CreateAdd(offset_val, IRB->CreateMul(idx_val, scale_val))));
 }
 
-Value* IREmitter::get_mem_val(BasicBlock* BB, unsigned base_reg, int64_t scale, unsigned idx_reg, int64_t offset, unsigned seg_reg, unsigned mem_size)
+Value* IREmitter::get_mem_val(unsigned base_reg, int64_t scale, unsigned idx_reg, int64_t offset, unsigned seg_reg, unsigned mem_size)
 {
   LLVMContext* context = Dec->getContext();
 
-  Value* pointer = IRB->CreateIntToPtr(get_pointer_val(BB, base_reg, scale, idx_reg, offset, seg_reg), PointerType::get(Type::getIntNTy(*context, mem_size), 0));
+  Value* pointer = IRB->CreateIntToPtr(get_pointer_val(base_reg, scale, idx_reg, offset, seg_reg), PointerType::get(Type::getIntNTy(*context, mem_size), 0));
 
   return IRB->CreateLoad(pointer);
 }
 
-void IREmitter::store_mem_val(BasicBlock* BB, unsigned base_reg, int64_t scale, unsigned idx_reg, int64_t offset, unsigned seg_reg, Value* val)
+void IREmitter::store_mem_val(unsigned base_reg, int64_t scale, unsigned idx_reg, int64_t offset, unsigned seg_reg, Value* val)
 {
-  Value* pointer = IRB->CreateIntToPtr(get_pointer_val(BB, base_reg, scale, idx_reg, offset, seg_reg), PointerType::get(val->getType(), 0));
+  Value* pointer = IRB->CreateIntToPtr(get_pointer_val(base_reg, scale, idx_reg, offset, seg_reg), PointerType::get(val->getType(), 0));
 
   IRB->CreateStore(val, pointer);
 }

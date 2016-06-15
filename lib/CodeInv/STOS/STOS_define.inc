@@ -15,7 +15,7 @@ define_visit(STOSQ)
   LLVMContext* context = Dec->getContext();
   
   Value* src_val = get_reg_val(X86::RAX);
-  store_mem_val(BB, base_opr.getReg(), 0, X86::NoRegister, 0, X86::NoRegister, src_val);
+  store_mem_val(base_opr.getReg(), 0, X86::NoRegister, 0, X86::NoRegister, src_val);
 
   Value* des_val = get_reg_val(des_opr.getReg());
   Value* df_val = get_DF_val();
