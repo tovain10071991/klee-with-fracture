@@ -25,6 +25,7 @@ define_visit(STOSQ)
   
   if(has_prefix)
   {
+    has_prefix = false;
     std::stringstream circuit_bb_name;
     circuit_bb_name << "bb_" << (Dec->getDisassembler()->getDebugOffset(I->getDebugLoc())) << "_circuit";
     BasicBlock* circuit_bb  = Dec->getOrCreateBasicBlock(circuit_bb_name.str(), BB->getParent());

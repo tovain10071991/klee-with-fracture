@@ -220,7 +220,7 @@ Function* Decompiler::decompileFunction(unsigned long Address) {
     Function::iterator SB;      // Split basic block
     BasicBlock::iterator SI, SE;    // Split instruction
     // Note the ++, nothing ever splits the entry block.
-    for (SB = ++F->begin(); SB != E; ++SB) {
+    for (SB = F->begin(); SB != E; ++SB) {
       DEBUG(SB->dump());
       if (SB->empty() || BBAddr < getBasicBlockAddress(SB)) {
         continue;
