@@ -29,7 +29,11 @@ define_visit(REP)
   circuit_bb_name << "bb_" << (Dec->getDisassembler()->getDebugOffset(I->getDebugLoc()) + I->getDesc().getSize()) << "_circuit";
   BasicBlock* circuit_bb  = Dec->getOrCreateBasicBlock(circuit_bb_name.str(), BB->getParent());
   
+  std::stringstream current_bb_name;
+  current_bb_name << "bb_" << Dec->getDisassembler()->getDebugOffset(I->getDebugLoc());
+  BasicBlock* current_bb  = Dec->getOrCreateBasicBlock(current_bb_name.str(), BB->getParent());
+  
   IRB->SetInsertPoint(circuit_bb);
   IRB->CreateSub(src_val, ConstantInt::get(Type::getIntNTy(*context, Dec->getDisassembler()->getMCDirector()->getRegType(src_opr.getReg()).getSizeInBits()), 1));
-  IRB->CreateBr(BB);
+  IRB->CreateBr(current_bb);
 }

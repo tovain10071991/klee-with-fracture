@@ -31,11 +31,11 @@ define_visit(STOSQ)
     BasicBlock* circuit_bb  = Dec->getOrCreateBasicBlock(circuit_bb_name.str(), BB->getParent());
     IRB->CreateBr(circuit_bb);
   }
-  else
-  {
-    std::stringstream out_bb_name;
-    out_bb_name << "bb_" << (Dec->getDisassembler()->getDebugOffset(I->getDebugLoc()) + I->getDesc().getSize());
-    BasicBlock* out_bb  = Dec->getOrCreateBasicBlock(out_bb_name.str(), BB->getParent());
-    IRB->CreateBr(out_bb);
-  }
+  // else
+  // {
+    // std::stringstream out_bb_name;
+    // // out_bb_name << "bb_" << (Dec->getDisassembler()->getDebugOffset(I->getDebugLoc()) + I->getDesc().getSize());
+    // BasicBlock* out_bb  = Dec->getOrCreateBasicBlock(out_bb_name.str(), BB->getParent());
+    // IRB->CreateBr(out_bb);
+  // }
 }
