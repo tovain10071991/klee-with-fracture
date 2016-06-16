@@ -1,1 +1,21 @@
+void Shrri(BasicBlock *BB, MachineInstr* I, unsigned init_size, unsigned final_size);
+
+// declare_visit(SHR16m1);
+// declare_visit(SHR16mCL);
+// declare_visit(SHR16mi);
+// declare_visit(SHR16r1);
+// declare_visit(SHR16rCL);
+declare_visit(SHR16ri);
+// declare_visit(SHR32m1);
+// declare_visit(SHR32mCL);
+// declare_visit(SHR32mi);
+// declare_visit(SHR32r1);
+// declare_visit(SHR32rCL);
+declare_visit(SHR32ri);
+// declare_visit(SHR8m1);
+// declare_visit(SHR8mCL);
+// declare_visit(SHR8mi);
+// declare_visit(SHR8r1);
+// declare_visit(SHR8rCL);
+declare_visit(SHR8ri);
 declare_visit(SHR64ri);

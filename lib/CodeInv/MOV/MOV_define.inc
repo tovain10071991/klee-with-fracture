@@ -1,4 +1,7 @@
-define_visit(MOV32r)
+#define define_mov(name) \
+  void IREmitter::Mov##name(BasicBlock *BB, MachineInstr* I, unsigned init_size, unsigned final_size)
+
+define_mov(r_)
 {
   assert(I->getNumOperands()==2 && "MOV's opr's num is not 2");
   MachineOperand& des_opr = I->getOperand(0);
@@ -11,7 +14,7 @@ define_visit(MOV32r)
   Value* src_val;
   if(src_opr.isImm())
   {
-    src_val = get_imm_val(src_opr.getImm(), 32, 32);
+    src_val = get_imm_val(src_opr.getImm(), init_size, final_size);
   }
   else
   {
@@ -25,79 +28,80 @@ define_visit(MOV32r)
   store_reg_val(des_opr.getReg(), result);
 }
 
-define_visit(MOV32rm)
+define_mov(rm)
 {
-  assert(I->getNumOperands()==6);
+  assert(I->getNumOperands()==6 && "MOV64mr's opr's num is not 6");
   MachineOperand& des_opr = I->getOperand(0);
-  assert(des_opr.isReg());
+  assert(des_opr.isReg() && "opr 0(des) is not reg in IREmitter::visitMOV64rm");
   MachineOperand& base_opr = I->getOperand(1);
-  assert(base_opr.isReg());
+  assert(base_opr.isReg() && "opr 1(base) is not reg in IREmitter::visitMOV64rm");
   MachineOperand& scale_opr = I->getOperand(2);
-  assert(scale_opr.isImm());
+  assert(scale_opr.isImm() && "opr 2(scale) is not imm in IREmitter::visitMOV64rm");
   MachineOperand& idx_opr = I->getOperand(3);
-  assert(idx_opr.isReg());
+  assert(idx_opr.isReg() && "opr 3(idx) is not reg in IREmitter::visitMOV64rm");
   MachineOperand& off_opr = I->getOperand(4);
-  assert(off_opr.isImm());
+  assert(off_opr.isImm() && "opr 4(off) is not imm in IREmitter::visitMOV64rm");
   MachineOperand& seg_opr = I->getOperand(5);
   assert(seg_opr.isReg());
 
   IRB->SetInsertPoint(BB);
 
   // read src
-  Value* src_val = get_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 32);
+  Value* src_val = get_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), final_size);
 
   // compute
   Value* result = src_val;
 
   // mask and store result
   store_reg_val(des_opr.getReg(), result);
+}
+
+define_mov(mr)
+{
+  assert(I->getNumOperands()==6 && "MOVmr's opr's num is not 6");
+  MachineOperand& src_opr = I->getOperand(5);
+  assert(src_opr.isReg() && "opr 0(des) is not reg in IREmitter::visitMOVmr");
+  MachineOperand& base_opr = I->getOperand(0);
+  assert(base_opr.isReg() && "opr 1(base) is not reg in IREmitter::visitMOVmr");
+  MachineOperand& scale_opr = I->getOperand(1);
+  assert(scale_opr.isImm() && "opr 2(scale) is not imm in IREmitter::visitMOVmr");
+  MachineOperand& idx_opr = I->getOperand(2);
+  assert(idx_opr.isReg() && "opr 3(idx) is not reg in IREmitter::visitMOV64mr");
+  MachineOperand& off_opr = I->getOperand(3);
+  assert(off_opr.isImm() && "opr 4(off) is not imm in IREmitter::visitMOV64mr");
+  MachineOperand& seg_opr = I->getOperand(4);
+  assert(seg_opr.isReg());
+
+  IRB->SetInsertPoint(BB);
+
+  // read srcg
+  Value* src_val = get_reg_val(src_opr.getReg());
+
+  // compute
+  Value* result = src_val;
+
+  // mask and store result
+  store_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), result);
+}
+
+define_visit(MOV32r)
+{
+	Movr_(BB, I, 32, 32);
+}
+
+define_visit(MOV32rm)
+{
+	Movrm(BB, I, 0, 32);
 }
 
 define_visit(MOV64r)
 {
-  assert(I->getNumOperands()==2);
-  MachineOperand& des_opr = I->getOperand(0);
-  assert(des_opr.isReg());
-  MachineOperand& src_opr = I->getOperand(1);
-
-  IRB->SetInsertPoint(BB);
-
-  // read src val
-  Value* src_val;
-  if(src_opr.isImm())
-  {
-    src_val = get_imm_val(src_opr.getImm(), 64, 64);
-  }
-  else
-  {
-    src_val = get_reg_val(src_opr.getReg());
-  }
-
-  // compute
-  Value* result = src_val;
-
-  // mask and store result
-  store_reg_val(des_opr.getReg(), result);
+	Movr_(BB, I, 64, 64);
 }
 
 define_visit(MOV64ri32)
 {
-  assert(I->getNumOperands()==2);
-  MachineOperand& des_opr = I->getOperand(0);
-  assert(des_opr.isReg());
-  MachineOperand& src_opr = I->getOperand(1);
-  assert(src_opr.isImm());
-
-  IRB->SetInsertPoint(BB);
-
-  // read src val
-  Value* src_val = get_imm_val(src_opr.getImm(), 32, 64);
-
-  // compute
-  Value* result = src_val;
-
-  // mask and store result
-  store_reg_val(des_opr.getReg(), result);
+	Movr_(BB, I, 32, 64);
 }
 
 define_visit(MOV8m)
@@ -133,6 +137,11 @@ define_visit(MOV8m)
 
   // mask and store result
   store_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), result);
+}
+
+define_visit(MOV8ri)
+{
+  Movr_(BB, I, 8, 8);
 }
 
 define_visit(MOV32m)
@@ -235,28 +244,96 @@ define_visit(MOV64mi32)
 
 define_visit(MOV64rm)
 {
-  assert(I->getNumOperands()==6 && "MOV64mr's opr's num is not 6");
-  MachineOperand& des_opr = I->getOperand(0);
-  assert(des_opr.isReg() && "opr 0(des) is not reg in IREmitter::visitMOV64rm");
-  MachineOperand& base_opr = I->getOperand(1);
-  assert(base_opr.isReg() && "opr 1(base) is not reg in IREmitter::visitMOV64rm");
-  MachineOperand& scale_opr = I->getOperand(2);
-  assert(scale_opr.isImm() && "opr 2(scale) is not imm in IREmitter::visitMOV64rm");
-  MachineOperand& idx_opr = I->getOperand(3);
-  assert(idx_opr.isReg() && "opr 3(idx) is not reg in IREmitter::visitMOV64rm");
-  MachineOperand& off_opr = I->getOperand(4);
-  assert(off_opr.isImm() && "opr 4(off) is not imm in IREmitter::visitMOV64rm");
-  MachineOperand& seg_opr = I->getOperand(5);
-  assert(seg_opr.isReg());
-
-  IRB->SetInsertPoint(BB);
-
-  // read src
-  Value* src_val = get_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), 64);
-
-  // compute
-  Value* result = src_val;
-
-  // mask and store result
-  store_reg_val(des_opr.getReg(), result);
+  Movrm(BB, I, 0, 64);
 }
+
+// define_visit(MOVZX16rr8)
+// {
+// }
+
+// define_visit(MOVZX32rr8)
+// {
+// }
+
+// define_visit(MOVZX32rr16)
+// {
+// }
+
+// define_visit(MOVZX16rm8)
+// {
+// }
+
+// define_visit(MOVZX32rm8)
+// {
+// }
+
+// define_visit(MOVZX32rm16)
+// {
+// }
+
+// define_visit(MOVSX16rr8)
+// {
+// }
+
+// define_visit(MOVSX32rr16)
+// {
+// }
+
+// define_visit(MOVSX32rr8)
+// {
+// }
+
+// define_visit(MOVSX64rr8)
+// {
+// }
+
+// define_visit(MOVSX64rr16)
+// {
+// }
+
+define_visit(MOVSX64rr32)
+{
+	Movr_(BB, I, 0, 0);
+}
+
+// define_visit(MOVSX16rm8)
+// {
+// }
+
+// define_visit(MOVSX32rm8)
+// {
+// }
+
+// define_visit(MOVSX32rm16)
+// {
+// }
+
+// define_visit(MOVSX64rm8)
+// {
+// }
+
+// define_visit(MOVSX64rm16)
+// {
+// }
+
+// define_visit(MOVSX64rm32)
+// {
+// }
+
+define_visit(MOVUPSrm)
+{
+	Movrm(BB, I, 0, 128);
+}
+
+define_visit(MOVUPSmr)
+{
+	Movmr(BB, I, 0, 0);
+}
+
+// define_visit(MOVUPSrr)
+// {
+// }
+
+// define_visit(MOVUPSrr_REV)
+// {
+// }

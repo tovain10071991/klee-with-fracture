@@ -5,7 +5,8 @@ void IREmitter::Decr (BasicBlock *BB, MachineInstr* I)
   assert(lhs_opr.isReg());
   MachineOperand& des_opr = I->getOperand(0);
   assert(des_opr.isReg() && des_opr.getReg() == lhs_opr.getReg());
-  assert(I->getOperand(2).isReg() && I->getOperand(2).getReg() == X86::EFLAGS);
+  assert(
+	  I->getOperand(2).isReg() && I->getOperand(2).getReg() == X86::EFLAGS);
 
   IRB->SetInsertPoint(BB);
 

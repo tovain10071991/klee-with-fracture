@@ -1,0 +1,21 @@
+void Shlri(BasicBlock *BB, MachineInstr* I, unsigned init_size, unsigned final_size);
+
+// declare_visit(SHL16m1);
+// declare_visit(SHL16mCL);
+// declare_visit(SHL16mi);
+// declare_visit(SHL16r1);
+// declare_visit(SHL16rCL);
+// declare_visit(SHL16ri);
+// declare_visit(SHL32m1);
+// declare_visit(SHL32mCL);
+// declare_visit(SHL32mi);
+// declare_visit(SHL32r1);
+// declare_visit(SHL32rCL);
+declare_visit(SHL32ri);
+declare_visit(SHL64ri);
+// declare_visit(SHL8m1);
+// declare_visit(SHL8mCL);
+// declare_visit(SHL8mi);
+// declare_visit(SHL8r1);
+// declare_visit(SHL8rCL);
+declare_visit(SHL8ri);

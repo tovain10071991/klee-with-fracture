@@ -69,8 +69,12 @@ void IREmitter::initDispatcher()
   #include "ADD/ADD_initDispatcher.inc"
   #include "SUB/SUB_initDispatcher.inc"
 
+  #include "INC/INC_initDispatcher.inc"
+  #include "DEC/DEC_initDispatcher.inc"
+
   #include "SAR/SAR_initDispatcher.inc"
   #include "SHR/SHR_initDispatcher.inc"
+  #include "SHL/SHL_initDispatcher.inc"
   
   #include "AND/AND_initDispatcher.inc"
   #include "OR/OR_initDispatcher.inc"
@@ -89,6 +93,10 @@ void IREmitter::initDispatcher()
   #include "REP/REP_initDispatcher.inc"
 
   #include "STOS/STOS_initDispatcher.inc"
+
+  #include "Misc/Misc_initDispatcher.inc"
+
+  #include "SSE/SSE_initDispatcher.inc"
   
   #include "SYSCALL/SYSCALL_initDispatcher.inc"
   
@@ -193,8 +201,12 @@ void IREmitter::visit(BasicBlock *BB, MachineInstr* CurInst) {
 #include "ADD/ADD_define.inc"
 #include "SUB/SUB_define.inc"
 
+#include "INC/INC_define.inc"
+#include "DEC/DEC_define.inc"
+
 #include "SAR/SAR_define.inc"
 #include "SHR/SHR_define.inc"
+#include "SHL/SHL_define.inc"
 
 #include "AND/AND_define.inc"
 #include "OR/OR_define.inc"
@@ -213,6 +225,10 @@ void IREmitter::visit(BasicBlock *BB, MachineInstr* CurInst) {
 #include "REP/REP_define.inc"
 
 #include "STOS/STOS_define.inc"
+
+#include "Misc/Misc_define.inc"
+
+#include "SSE/SSE_define.inc"
 
 #include "SYSCALL/SYSCALL_define.inc"
 

@@ -77,8 +77,12 @@ protected:
   #include "../lib/CodeInv/ADD/ADD_declare.inc"
   #include "../lib/CodeInv/SUB/SUB_declare.inc"
 
+  #include "../lib/CodeInv/INC/INC_declare.inc"
+  #include "../lib/CodeInv/DEC/DEC_declare.inc"
+
   #include "../lib/CodeInv/SAR/SAR_declare.inc"
   #include "../lib/CodeInv/SHR/SHR_declare.inc"
+  #include "../lib/CodeInv/SHL/SHL_declare.inc"
 
   #include "../lib/CodeInv/AND/AND_declare.inc"
   #include "../lib/CodeInv/OR/OR_declare.inc"
@@ -96,7 +100,11 @@ protected:
 
   #include "../lib/CodeInv/REP/REP_declare.inc"
   
-  #include "../lib/CodeInv/STOS/STOS_declare.inc"  
+  #include "../lib/CodeInv/STOS/STOS_declare.inc"
+
+  #include "../lib/CodeInv/Misc/Misc_declare.inc"
+
+  #include "../lib/CodeInv/SSE/SSE_declare.inc"
 
   #include "../lib/CodeInv/SYSCALL/SYSCALL_declare.inc"
 
