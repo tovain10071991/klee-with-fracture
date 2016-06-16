@@ -187,9 +187,34 @@ define_visit(CMP64ri8)
 	Cmpr_(BB, I, 8, 64);
 }
 
-// define_visit(CMP64i32)
-// {
-// }
+define_visit(CMP64i32)
+{
+  assert(I->getNumOperands()==4);
+  MachineOperand& lhs_opr = I->getOperand(3);
+  assert(lhs_opr.isReg());
+  assert(I->getOperand(1).isReg() && I->getOperand(1).getReg()==lhs_opr.getReg());  // is defed reg, why?
+  MachineOperand& rhs_opr = I->getOperand(0);
+  assert(rhs_opr.isImm());
+  assert(I->getOperand(2).isReg() && I->getOperand(2).getReg()==X86::EFLAGS);
+  
+  IRB->SetInsertPoint(BB);
+
+  // read lhs
+  Value* lhs_val = get_reg_val(lhs_opr.getReg());
+
+  //read rhs
+  Value* rhs_val = get_imm_val(rhs_opr.getImm(), 32, 64);
+
+  // compute
+  Value* result = IRB->CreateSub(lhs_val, rhs_val);
+
+  store_AF_val(I->getOpcode(), lhs_val, rhs_val, result);
+  store_PF_val(I->getOpcode(), lhs_val, rhs_val, result);
+  store_ZF_val(I->getOpcode(), lhs_val, rhs_val, result);
+  store_SF_val(I->getOpcode(), lhs_val, rhs_val, result);
+  store_CF_val(I->getOpcode(), lhs_val, rhs_val, result);
+  store_OF_val(I->getOpcode(), lhs_val, rhs_val, result);
+}
 
 define_visit(CMP32mi8)
 {

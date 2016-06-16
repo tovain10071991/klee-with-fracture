@@ -45,6 +45,7 @@ void IREmitter::store_reg_val(unsigned reg, Value* val)
 
   unsigned super_reg = get_super_reg(reg);
   IntegerType* reg_type = Type::getIntNTy(*context, Dec->getDisassembler()->getMCDirector()->getRegType(reg).getSizeInBits());
+  assert(val->getType() == reg_type);
   IntegerType* super_reg_type = Type::getIntNTy(*context, Dec->getDisassembler()->getMCDirector()->getRegType(super_reg).getSizeInBits());
   ConstantInt* offset_const = reg==super_reg ? ConstantInt::get(super_reg_type, 0) : ConstantInt::get(super_reg_type, MRI->getSubRegIdxOffset(MRI->getSubRegIndex(super_reg, reg)));
 

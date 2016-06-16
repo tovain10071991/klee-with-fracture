@@ -84,6 +84,34 @@ define_mov(mr)
   store_mem_val(base_opr.getReg(), scale_opr.getImm(), idx_opr.getReg(), off_opr.getImm(), seg_opr.getReg(), result);
 }
 
+define_mov(sxrr)
+{
+	assert(I->getNumOperands()==2);
+  MachineOperand& des_opr = I->getOperand(0);
+  assert(des_opr.isReg());
+  MachineOperand& src_opr = I->getOperand(1);
+
+  IRB->SetInsertPoint(BB);
+  LLVMContext* context = Dec->getContext();
+
+  // read src val
+  Value* src_val;
+  if(src_opr.isImm())
+  {
+    src_val = get_imm_val(src_opr.getImm(), init_size, final_size);
+  }
+  else
+  {
+    src_val = get_reg_val(src_opr.getReg());
+  }
+
+  // compute
+  Value* result = IRB->CreateSExt(src_val, Type::getIntNTy(*context, Dec->getDisassembler()->getMCDirector()->getRegType(des_opr.getReg()).getSizeInBits()));
+
+  // mask and store result
+  store_reg_val(des_opr.getReg(), result);
+}
+
 define_visit(MOV32r)
 {
 	Movr_(BB, I, 32, 32);
@@ -293,7 +321,7 @@ define_visit(MOV64rm)
 
 define_visit(MOVSX64rr32)
 {
-	Movr_(BB, I, 0, 0);
+	Movsxrr(BB, I, 0, 0);
 }
 
 // define_visit(MOVSX16rm8)

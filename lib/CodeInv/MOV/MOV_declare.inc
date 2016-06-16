@@ -1,8 +1,10 @@
 #define declare_mov(name) \
   void Mov##name(BasicBlock *BB, MachineInstr* I, unsigned init_size, unsigned final_size)
-  declare_mov(r_);
-  declare_mov(rm);
-  declare_mov(mr);
+
+declare_mov(r_);
+declare_mov(rm);
+declare_mov(mr);
+declare_mov(sxrr);
 
 declare_visit(MOV32r);
 declare_visit(MOV32rm);
