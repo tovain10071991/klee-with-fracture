@@ -1,7 +1,50 @@
-void ADDr(BasicBlock *BB, MachineInstr* I, unsigned init_size, unsigned final_size);
-declare_visit(ADD32rr);
-declare_visit(ADD64rr);
+#define declare_add(name) \
+  void Add##name(BasicBlock *BB, MachineInstr* I, unsigned init_size, unsigned final_size)
+
+declare_add(ri);
+declare_add(rm);
+
+// declare_visit(ADD16i16);
+// declare_visit(ADD16mi);
+// declare_visit(ADD16mi8);
+declare_visit(ADD16mr);
+// declare_visit(ADD16ri);
+// declare_visit(ADD16ri_DB);
+// declare_visit(ADD16ri8);
+// declare_visit(ADD16ri8_DB);
+// declare_visit(ADD16rm);
+// declare_visit(ADD16rr);
+// declare_visit(ADD16rr_DB);
+// declare_visit(ADD16rr_REV);
+// declare_visit(ADD32i32);
+// declare_visit(ADD32mi);
+// declare_visit(ADD32mi8);
+// declare_visit(ADD32mr);
+// declare_visit(ADD32ri);
+// declare_visit(ADD32ri_DB);
 declare_visit(ADD32ri8);
-declare_visit(ADD64ri8);
-declare_visit(ADD64ri32);
+// declare_visit(ADD32ri8_DB);
+// declare_visit(ADD32rm);
+declare_visit(ADD32rr);
+// declare_visit(ADD32rr_DB);
+// declare_visit(ADD32rr_REV);
 declare_visit(ADD64i32);
+// declare_visit(ADD64mi32);
+// declare_visit(ADD64mi8);
+declare_visit(ADD64mr);
+declare_visit(ADD64ri32);
+// declare_visit(ADD64ri32_DB);
+declare_visit(ADD64ri8);
+// declare_visit(ADD64ri8_DB);
+declare_visit(ADD64rm);
+declare_visit(ADD64rr);
+// declare_visit(ADD64rr_DB);
+// declare_visit(ADD64rr_REV);
+// declare_visit(ADD8i8);
+// declare_visit(ADD8mi);
+// declare_visit(ADD8mr);
+// declare_visit(ADD8ri);
+// declare_visit(ADD8rm);
+// declare_visit(ADD8rr);
+// declare_visit(ADD8rr_REV);
+declare_visit(XADD32rm);
