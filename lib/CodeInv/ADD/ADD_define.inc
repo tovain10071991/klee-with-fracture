@@ -79,24 +79,24 @@ define_add(rm)
   store_OF_val(I->getOpcode(), lhs_val, rhs_val, result);
 }
 
+define_visit(ADD32ri8)
+{
+  Addri(BB, I, 8,32);
+}
+
 define_visit(ADD32rr)
 {
   Addri(BB, I , 32, 32);
 }
 
-define_visit(ADD64rr)
-{
-  Addri(BB, I, 64, 64);
-}
-
-define_visit(ADD32ri8)
-{
-  Addri(BB, I, 8, 32);
-}
-
 define_visit(ADD64ri8)
 {
-  Addri(BB, I, 8, 64);
+  Addri(BB, I , 8, 64);
+}
+
+define_visit(ADD64rm)
+{
+  Addrm(BB, I , 64, 64);
 }
 
 define_visit(ADD64ri32)
@@ -104,9 +104,9 @@ define_visit(ADD64ri32)
   Addri(BB, I , 32, 64);
 }
 
-define_visit(ADD64rm)
+define_visit(ADD64rr)
 {
-  Addrm(BB, I , 64, 64);
+  Addri(BB, I , 64, 64);
 }
 
 define_visit(ADD64i32)
