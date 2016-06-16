@@ -1,0 +1,12 @@
+// visitDispatchers[X86::INC16m] = &IREmitter::visitINC16m;
+// visitDispatchers[X86::INC32m] = &IREmitter::visitINC32m;
+// visitDispatchers[X86::INC8m] = &IREmitter::visitINC8m;
+// visitDispatchers[X86::INC8r] = &IREmitter::visitINC8r;
+// visitDispatchers[X86::INC16r] = &IREmitter::visitINC16r;
+// visitDispatchers[X86::INC32r] = &IREmitter::visitINC32r;
+// visitDispatchers[X86::INC64r] = &IREmitter::visitINC64r;
+visitDispatchers[X86::INC64_32r] = &IREmitter::visitINC64_32r;
+// visitDispatchers[X86::INC64_16r] = &IREmitter::visitINC64_16r;
+// visitDispatchers[X86::INC64m] = &IREmitter::visitINC64m;
+// visitDispatchers[X86::INC64_32m] = &IREmitter::visitINC64_32m;
+// visitDispatchers[X86::INC64_16m] = &IREmitter::visitINC64_16m;
