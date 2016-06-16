@@ -7,6 +7,7 @@ define_add(ri)
 	MachineOperand& lhs_opr = I->getOperand(1);
 	assert(lhs_opr.isReg());
 	MachineOperand& rhs_opr = I->getOperand(2);
+  // assert(rhs_opr.isImm());
 	assert(I->getOperand(3).isReg() && I->getOperand(3).getReg() == X86::EFLAGS);
 	MachineOperand& des_opr = I->getOperand(0);
 	assert(des_opr.isReg() && des_opr.getReg() == lhs_opr.getReg());
@@ -86,7 +87,7 @@ define_visit(ADD32ri8)
 
 define_visit(ADD32rr)
 {
-  Addri(BB, I , 32, 32);
+  Addri(BB, I , 0, 0);
 }
 
 define_visit(ADD64ri8)
@@ -96,7 +97,7 @@ define_visit(ADD64ri8)
 
 define_visit(ADD64rm)
 {
-  Addrm(BB, I , 64, 64);
+  Addrm(BB, I , 0, 0);
 }
 
 define_visit(ADD64ri32)
@@ -106,7 +107,7 @@ define_visit(ADD64ri32)
 
 define_visit(ADD64rr)
 {
-  Addri(BB, I , 64, 64);
+  Addri(BB, I , 0, 0);
 }
 
 define_visit(ADD64i32)
@@ -141,6 +142,10 @@ define_visit(ADD64i32)
   store_CF_val(I->getOpcode(), lhs_val, rhs_val, result);
   store_OF_val(I->getOpcode(), lhs_val, rhs_val, result);
 }
+
+// define_visit(ADD64mr)
+// {
+// }
 
 define_visit(XADD32rm)
 {
